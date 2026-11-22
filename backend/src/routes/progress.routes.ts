@@ -228,12 +228,12 @@ progressRouter.post('/weekly/student-submit', authenticate, async (req, res): Pr
         challenges: challenges || null,
         githubEvidenceUrl: githubEvidenceUrl ? githubEvidenceUrl.trim() : null,
         nextWeekPlan: nextWeekPlan || null,
-        status: WeeklyStatus.SUBMITTED,
+        status: WeeklyStatus.IN_PROGRESS,
         reviewStatus: 'PENDING',
       },
       create: {
         studentId: targetStudentId,
-        mentorId: student?.assignedMentorId,
+        mentorId: student?.assignedMentorId || req.user!.id,
         weekStartDate: startDate,
         weekEndDate: endDate,
         weekNumber,
@@ -244,7 +244,7 @@ progressRouter.post('/weekly/student-submit', authenticate, async (req, res): Pr
         challenges: challenges || null,
         githubEvidenceUrl: githubEvidenceUrl ? githubEvidenceUrl.trim() : null,
         nextWeekPlan: nextWeekPlan || null,
-        status: WeeklyStatus.SUBMITTED,
+        status: WeeklyStatus.IN_PROGRESS,
         reviewStatus: 'PENDING',
       },
     });
@@ -256,7 +256,7 @@ progressRouter.post('/weekly/student-submit', authenticate, async (req, res): Pr
           userId: student.assignedMentorId,
           title: `Weekly Progress Submitted: ${student.fullName}`,
           message: `${student.fullName} submitted weekly report for Week ${weekNumber} (${year}).`,
-          type: NotificationType.WEEKLY_UPDATE_REMINDER,
+          type: NotificationType.MISSING_UPDATE,
           linkUrl: `/weekly-progress`,
         },
       });

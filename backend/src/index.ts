@@ -29,22 +29,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:5173',
-  process.env.CORS_ORIGIN || '',
-].filter(Boolean);
-
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // allow requests with no origin (like mobile apps, curl, postman)
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Permissive in local dev
-    },
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
   })
 );
@@ -94,10 +81,14 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Initialize background schedulers
-CronService.init();
+// Initialize background schedulers in non-serverless environments
+if (!process.env.VERCEL) {
+  CronService.init();
 
-app.listen(PORT, () => {
-  console.log(`🚀 Pinnacle Mindz Backend API running on port ${PORT}`);
-  console.log(`📁 Upload storage directory: ${uploadDir}`);
-});
+  app.listen(PORT, () => {
+    console.log(`🚀 Pinnacle Mindz Backend API running on port ${PORT}`);
+    console.log(`📁 Upload storage directory: ${uploadDir}`);
+  });
+}
+
+export default app;

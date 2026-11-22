@@ -155,8 +155,16 @@ reportsRouter.get('/document-submissions', authenticate, async (req, res) => {
       },
       orderBy: { submittedAt: 'desc' },
       include: {
-        student: { select: { id: true, studentId: true, fullName: true, registrationNumber: true, batch: true } },
-        assignedMentor: { select: { fullName: true } },
+        student: {
+          select: {
+            id: true,
+            studentId: true,
+            fullName: true,
+            registrationNumber: true,
+            batch: true,
+            assignedMentor: { select: { fullName: true } },
+          },
+        },
         reviewedBy: { select: { fullName: true, role: true } },
         versions: { orderBy: { versionNumber: 'desc' } },
       },
@@ -213,7 +221,7 @@ reportsRouter.get('/deadlines', authenticate, async (req, res) => {
     const [overdueTasks, upcomingTasks, upcomingMilestones] = await Promise.all([
       prisma.projectTask.findMany({
         where: {
-          status: { in: ['TO_DO', 'IN_PROGRESS', 'NOT_STARTED', 'CORRECTION_REQUIRED'] },
+          status: { in: ['TO_DO', 'IN_PROGRESS', 'NOT_STARTED', 'REVISION_REQUIRED'] },
           dueDate: { lt: now },
         },
         include: {

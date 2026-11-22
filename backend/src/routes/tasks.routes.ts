@@ -147,7 +147,7 @@ tasksRouter.post('/', authenticate, async (req, res): Promise<void> => {
           userId: task.project.student.userId,
           title: `New Task Assigned: ${title}`,
           message: `A new task "${title}" has been assigned to your project.`,
-          type: NotificationType.GENERAL,
+          type: NotificationType.SYSTEM,
           linkUrl: `/tasks`,
         },
       });
@@ -216,7 +216,7 @@ tasksRouter.put('/:id/student-progress', authenticate, async (req, res): Promise
           userId: mentorId,
           title: `Task Progress Updated: ${task.title}`,
           message: `${task.project.student.fullName} updated progress on "${task.title}" to ${parsedPercent}%. Status: ${nextStatus}.`,
-          type: NotificationType.GENERAL,
+          type: NotificationType.SYSTEM,
           linkUrl: `/tasks`,
         },
       });
@@ -237,7 +237,7 @@ tasksRouter.post('/:id/verify', authenticate, requireRoles(Role.ADMIN, Role.SUPE
 
     const allowedStatuses = [
       TaskStatus.COMPLETED,
-      TaskStatus.CORRECTION_REQUIRED,
+      TaskStatus.REVISION_REQUIRED,
       TaskStatus.IN_PROGRESS,
     ];
 
@@ -270,7 +270,7 @@ tasksRouter.post('/:id/verify', authenticate, requireRoles(Role.ADMIN, Role.SUPE
       data: {
         status: status as TaskStatus,
         mentorFeedback: mentorFeedback || null,
-        completionPercentage: isCompleted ? 100 : status === TaskStatus.CORRECTION_REQUIRED ? Math.min(task.completionPercentage, 80) : task.completionPercentage,
+        completionPercentage: isCompleted ? 100 : status === TaskStatus.REVISION_REQUIRED ? Math.min(task.completionPercentage, 80) : task.completionPercentage,
         completionDate: isCompleted ? new Date() : null,
       },
     });
