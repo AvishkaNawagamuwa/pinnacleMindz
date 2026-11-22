@@ -81,15 +81,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Initialize background schedulers in non-serverless environments
+// Initialize background schedulers and listener in non-serverless environments
 if (!process.env.VERCEL) {
   CronService.init();
-}
 
-app.listen(PORT, () => {
-  console.log(`🚀 Pinnacle Mindz Backend API running on port ${PORT}`);
-  console.log(`📁 Upload storage directory: ${uploadDir}`);
-});
+  app.listen(PORT, () => {
+    console.log(`🚀 Pinnacle Mindz Backend API running on port ${PORT}`);
+    console.log(`📁 Upload storage directory: ${uploadDir}`);
+  });
+}
 
 export default app;
 
