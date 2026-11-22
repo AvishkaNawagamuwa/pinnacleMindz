@@ -156,7 +156,14 @@ authRouter.post('/login', async (req, res): Promise<void> => {
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error during login.' });
+    const isDbError =
+      error.message?.includes('database') ||
+      error.message?.includes('Can\'t reach database') ||
+      error.code?.startsWith('P');
+    const msg = isDbError
+      ? 'Database connection error: Could not connect to PostgreSQL. Please verify your DATABASE_URL in Vercel Project Settings.'
+      : (error.message || 'Internal server error during login.');
+    res.status(500).json({ message: msg });
   }
 });
 
