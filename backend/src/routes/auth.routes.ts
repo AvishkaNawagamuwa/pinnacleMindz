@@ -38,6 +38,20 @@ authRouter.post('/login', async (req, res): Promise<void> => {
       return;
     }
 
+    // Check database configuration
+    const hasDb = Boolean(
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL
+    );
+
+    if (!hasDb) {
+      res.status(503).json({
+        message: 'Database not connected on Vercel. Please create a database in Vercel Storage or set DATABASE_URL in Project Settings.',
+      });
+      return;
+    }
+
     const user = await prisma.user.findFirst({
       where: {
         OR: [

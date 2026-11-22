@@ -1,4 +1,3 @@
-import PDFDocument from 'pdfkit';
 import { prisma } from '../prisma.js';
 import { format } from 'date-fns';
 import fs from 'fs';
@@ -69,6 +68,7 @@ export class PdfService {
             contactPhone: '+94 77 890 1234',
             address: 'Colombo, Sri Lanka',
         };
+        const { default: PDFDocument } = await import('pdfkit');
         return new Promise((resolve, reject) => {
             const doc = new PDFDocument({
                 size: 'A4',
@@ -268,6 +268,7 @@ export class PdfService {
         };
         const totalPaid = payment.feeAgreement.payments.reduce((acc, p) => acc + p.amount, 0);
         const balanceRemaining = payment.feeAgreement.finalPayableAmount - totalPaid;
+        const { default: PDFDocument } = await import('pdfkit');
         return new Promise((resolve, reject) => {
             const doc = new PDFDocument({
                 size: 'A4',
