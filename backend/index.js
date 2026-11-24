@@ -1,3 +1,4 @@
-import app from './dist/bundle.mjs';
+const app = require('./dist/index.js');
 
-export default app;
+module.exports = app.default || app;
+module.exports.default = app.default || app;

@@ -1,16 +1,19 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, checkStudentAccess, requireRoles } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
-import { DocumentStatus, NotificationType, Role, DevelopmentStage } from '@prisma/client';
-export const documentsRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.documentsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const upload_js_1 = require("../middleware/upload.js");
+const client_1 = require("@prisma/client");
+exports.documentsRouter = (0, express_1.Router)();
 // ==========================================
 // MASTER DOCUMENT REQUIREMENTS (Super Admin / Admin)
 // ==========================================
 // GET /api/documents/requirements - List all master requirements
-documentsRouter.get('/requirements', authenticate, async (req, res) => {
+exports.documentsRouter.get('/requirements', auth_js_1.authenticate, async (req, res) => {
     try {
-        const requirements = await prisma.documentType.findMany({
+        const requirements = await prisma_js_1.prisma.documentType.findMany({
             orderBy: { orderIndex: 'asc' },
             include: {
                 _count: {
@@ -26,23 +29,23 @@ documentsRouter.get('/requirements', authenticate, async (req, res) => {
     }
 });
 // POST /api/documents/requirements - Create requirement & auto-assign to students
-documentsRouter.post('/requirements', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.documentsRouter.post('/requirements', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
-        const { code, name, description, category = 'General', academicStage = DevelopmentStage.PROPOSAL, submissionInstructions, defaultDeadlineDays = 30, allowedUrlTypes = 'Google Drive, GitHub, Web URL', targetBatch, targetStage, isRequired = true, autoAssignAllActive = true, } = req.body;
+        const { code, name, description, category = 'General', academicStage = client_1.DevelopmentStage.PROPOSAL, submissionInstructions, defaultDeadlineDays = 30, allowedUrlTypes = 'Google Drive, GitHub, Web URL', targetBatch, targetStage, isRequired = true, autoAssignAllActive = true, } = req.body;
         if (!code || !name) {
             res.status(400).json({ message: 'Requirement code and title are required.' });
             return;
         }
         const trimmedCode = code.toUpperCase().trim();
-        const existing = await prisma.documentType.findUnique({
+        const existing = await prisma_js_1.prisma.documentType.findUnique({
             where: { code: trimmedCode },
         });
         if (existing) {
             res.status(400).json({ message: `A document requirement with code "${trimmedCode}" already exists.` });
             return;
         }
-        const count = await prisma.documentType.count();
-        const createdReq = await prisma.$transaction(async (tx) => {
+        const count = await prisma_js_1.prisma.documentType.count();
+        const createdReq = await prisma_js_1.prisma.$transaction(async (tx) => {
             // 1. Create requirement
             const reqDoc = await tx.documentType.create({
                 data: {
@@ -85,7 +88,7 @@ documentsRouter.post('/requirements', authenticate, requireRoles(Role.ADMIN), as
                                 documentName: reqDoc.name,
                                 documentType: reqDoc.code,
                                 assignedMentorId: student.assignedMentorId,
-                                status: DocumentStatus.NOT_STARTED,
+                                status: client_1.DocumentStatus.NOT_STARTED,
                             },
                         });
                     }
@@ -115,11 +118,11 @@ documentsRouter.post('/requirements', authenticate, requireRoles(Role.ADMIN), as
     }
 });
 // PUT /api/documents/requirements/:id - Update requirement details
-documentsRouter.put('/requirements/:id', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.documentsRouter.put('/requirements/:id', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const id = req.params.id;
         const { name, description, category, academicStage, submissionInstructions, defaultDeadlineDays, allowedUrlTypes, orderIndex, isActive, } = req.body;
-        const updated = await prisma.documentType.update({
+        const updated = await prisma_js_1.prisma.documentType.update({
             where: { id },
             data: {
                 name: name ? name.trim() : undefined,
@@ -135,10 +138,10 @@ documentsRouter.put('/requirements/:id', authenticate, requireRoles(Role.ADMIN),
         });
         // Also sync documentName on unsubmitted student documents
         if (name) {
-            await prisma.studentDocument.updateMany({
+            await prisma_js_1.prisma.studentDocument.updateMany({
                 where: {
                     documentTypeId: id,
-                    status: { in: [DocumentStatus.NOT_STARTED, DocumentStatus.PENDING] },
+                    status: { in: [client_1.DocumentStatus.NOT_STARTED, client_1.DocumentStatus.PENDING] },
                 },
                 data: { documentName: name.trim() },
             });
@@ -151,11 +154,11 @@ documentsRouter.put('/requirements/:id', authenticate, requireRoles(Role.ADMIN),
     }
 });
 // PUT /api/documents/requirements/:id/status - Toggle requirement active/inactive
-documentsRouter.put('/requirements/:id/status', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.documentsRouter.put('/requirements/:id/status', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const id = req.params.id;
         const { isActive } = req.body;
-        const updated = await prisma.documentType.update({
+        const updated = await prisma_js_1.prisma.documentType.update({
             where: { id },
             data: { isActive: Boolean(isActive) },
         });
@@ -169,7 +172,7 @@ documentsRouter.put('/requirements/:id/status', authenticate, requireRoles(Role.
 // STUDENT DOCUMENT SUBMISSIONS & REVIEWS
 // ==========================================
 // GET /api/documents - List documents with filters
-documentsRouter.get('/', authenticate, async (req, res) => {
+exports.documentsRouter.get('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { studentId, status, mentorId, search } = req.query;
         const where = {};
@@ -187,21 +190,21 @@ documentsRouter.get('/', authenticate, async (req, res) => {
             ];
         }
         // Role filtering: mentor sees assigned
-        if (req.user.role === Role.MENTOR && !studentId) {
+        if (req.user.role === client_1.Role.MENTOR && !studentId) {
             where.OR = [
                 { assignedMentorId: req.user.id },
                 { student: { supportingMentors: { some: { mentorId: req.user.id } } } },
             ];
         }
-        if (req.user.role === Role.STUDENT) {
-            const student = await prisma.student.findFirst({ where: { userId: req.user.id } });
+        if (req.user.role === client_1.Role.STUDENT) {
+            const student = await prisma_js_1.prisma.student.findFirst({ where: { userId: req.user.id } });
             if (!student) {
                 res.json({ documents: [] });
                 return;
             }
             where.studentId = student.id;
         }
-        const documents = await prisma.studentDocument.findMany({
+        const documents = await prisma_js_1.prisma.studentDocument.findMany({
             where,
             orderBy: { updatedAt: 'desc' },
             include: {
@@ -222,7 +225,7 @@ documentsRouter.get('/', authenticate, async (req, res) => {
     }
 });
 // POST /api/documents/:id/submit-url - Student submits external Google Drive / GitHub link
-documentsRouter.post('/:id/submit-url', authenticate, async (req, res) => {
+exports.documentsRouter.post('/:id/submit-url', auth_js_1.authenticate, async (req, res) => {
     try {
         const documentId = req.params.id;
         const { submissionTitle, submissionUrl, submissionNote } = req.body;
@@ -239,7 +242,7 @@ documentsRouter.post('/:id/submit-url', authenticate, async (req, res) => {
             res.status(400).json({ message: 'Invalid URL format. Please provide a valid external URL (e.g., https://drive.google.com/...)' });
             return;
         }
-        const document = await prisma.studentDocument.findUnique({
+        const document = await prisma_js_1.prisma.studentDocument.findUnique({
             where: { id: documentId },
             include: {
                 student: {
@@ -255,17 +258,17 @@ documentsRouter.post('/:id/submit-url', authenticate, async (req, res) => {
             res.status(404).json({ message: 'Document record not found' });
             return;
         }
-        const access = await checkStudentAccess(req, document.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, document.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
         const nextVersion = document.currentVersion + 1;
-        const isResubmission = document.status === DocumentStatus.CORRECTION_REQUIRED || document.status === DocumentStatus.REVISION_REQUIRED;
-        const nextStatus = isResubmission ? DocumentStatus.RESUBMITTED : DocumentStatus.SUBMITTED;
-        const [updatedDoc, newVersion] = await prisma.$transaction([
+        const isResubmission = document.status === client_1.DocumentStatus.CORRECTION_REQUIRED || document.status === client_1.DocumentStatus.REVISION_REQUIRED;
+        const nextStatus = isResubmission ? client_1.DocumentStatus.RESUBMITTED : client_1.DocumentStatus.SUBMITTED;
+        const [updatedDoc, newVersion] = await prisma_js_1.prisma.$transaction([
             // 1. Update StudentDocument
-            prisma.studentDocument.update({
+            prisma_js_1.prisma.studentDocument.update({
                 where: { id: documentId },
                 data: {
                     submissionTitle: submissionTitle ? submissionTitle.trim() : document.documentName,
@@ -278,7 +281,7 @@ documentsRouter.post('/:id/submit-url', authenticate, async (req, res) => {
                 },
             }),
             // 2. Create DocumentVersion record with external link
-            prisma.documentVersion.create({
+            prisma_js_1.prisma.documentVersion.create({
                 data: {
                     studentDocumentId: documentId,
                     versionNumber: nextVersion,
@@ -301,18 +304,18 @@ documentsRouter.post('/:id/submit-url', authenticate, async (req, res) => {
             ...document.student.supportingMentors.map((sm) => sm.mentorId),
         ].filter(Boolean);
         for (const recId of notificationReceivers) {
-            await prisma.notification.create({
+            await prisma_js_1.prisma.notification.create({
                 data: {
                     userId: recId,
                     title: `Document ${isResubmission ? 'Resubmitted' : 'Submitted'}: ${document.documentName}`,
                     message: `${document.student.fullName} submitted ${document.documentName} (Version ${nextVersion}). Please review and provide feedback.`,
-                    type: NotificationType.DOCUMENT_SUBMISSION,
+                    type: client_1.NotificationType.DOCUMENT_SUBMISSION,
                     linkUrl: `/students/${document.studentId}`,
                 },
             });
         }
         // 4. Audit Log
-        await prisma.activityLog.create({
+        await prisma_js_1.prisma.activityLog.create({
             data: {
                 actorId: req.user.id,
                 actorName: req.user.fullName,
@@ -335,21 +338,21 @@ documentsRouter.post('/:id/submit-url', authenticate, async (req, res) => {
     }
 });
 // POST /api/documents/:id/review-submission - Mentor / Supervisor review & feedback
-documentsRouter.post('/:id/review-submission', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR, Role.MENTOR), async (req, res) => {
+exports.documentsRouter.post('/:id/review-submission', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR, client_1.Role.MENTOR), async (req, res) => {
     try {
         const documentId = req.params.id;
         const { status, reviewerFeedback, requiredCorrections, correctionDeadline } = req.body;
         const allowedStatuses = [
-            DocumentStatus.APPROVED,
-            DocumentStatus.CORRECTION_REQUIRED,
-            DocumentStatus.UNDER_REVIEW,
-            DocumentStatus.REJECTED,
+            client_1.DocumentStatus.APPROVED,
+            client_1.DocumentStatus.CORRECTION_REQUIRED,
+            client_1.DocumentStatus.UNDER_REVIEW,
+            client_1.DocumentStatus.REJECTED,
         ];
         if (!status || !allowedStatuses.includes(status)) {
             res.status(400).json({ message: `Status must be one of: ${allowedStatuses.join(', ')}` });
             return;
         }
-        const document = await prisma.studentDocument.findUnique({
+        const document = await prisma_js_1.prisma.studentDocument.findUnique({
             where: { id: documentId },
             include: {
                 student: { select: { id: true, fullName: true, userId: true, assignedMentorId: true } },
@@ -361,8 +364,8 @@ documentsRouter.post('/:id/review-submission', authenticate, requireRoles(Role.A
             return;
         }
         const latestVersion = document.versions[0];
-        const isApproved = status === DocumentStatus.APPROVED;
-        await prisma.$transaction(async (tx) => {
+        const isApproved = status === client_1.DocumentStatus.APPROVED;
+        await prisma_js_1.prisma.$transaction(async (tx) => {
             // 1. Update StudentDocument
             await tx.studentDocument.update({
                 where: { id: documentId },
@@ -387,7 +390,7 @@ documentsRouter.post('/:id/review-submission', authenticate, requireRoles(Role.A
                 });
             }
             // 3. If correction required, record in Correction table
-            if (status === DocumentStatus.CORRECTION_REQUIRED) {
+            if (status === client_1.DocumentStatus.CORRECTION_REQUIRED) {
                 await tx.correction.create({
                     data: {
                         studentId: document.studentId,
@@ -407,7 +410,7 @@ documentsRouter.post('/:id/review-submission', authenticate, requireRoles(Role.A
                         userId: document.student.userId,
                         title: `Document ${status}: ${document.documentName}`,
                         message: `Your reviewer marked ${document.documentName} as ${status}. Feedback: "${reviewerFeedback || 'Reviewed'}"`,
-                        type: status === DocumentStatus.APPROVED ? NotificationType.SUPERVISOR_FEEDBACK : NotificationType.CORRECTION,
+                        type: status === client_1.DocumentStatus.APPROVED ? client_1.NotificationType.SUPERVISOR_FEEDBACK : client_1.NotificationType.CORRECTION,
                         linkUrl: `/students/${document.studentId}`,
                     },
                 });
@@ -433,10 +436,10 @@ documentsRouter.post('/:id/review-submission', authenticate, requireRoles(Role.A
     }
 });
 // POST /api/documents/:id/upload - Upload file and create new version (Local file upload fallback)
-documentsRouter.post('/:id/upload', authenticate, upload.single('file'), async (req, res) => {
+exports.documentsRouter.post('/:id/upload', auth_js_1.authenticate, upload_js_1.upload.single('file'), async (req, res) => {
     try {
         const documentId = req.params.id;
-        const document = await prisma.studentDocument.findUnique({
+        const document = await prisma_js_1.prisma.studentDocument.findUnique({
             where: { id: documentId },
             include: { student: { include: { assignedSupervisor: true } } },
         });
@@ -444,7 +447,7 @@ documentsRouter.post('/:id/upload', authenticate, upload.single('file'), async (
             res.status(404).json({ message: 'Document record not found' });
             return;
         }
-        const access = await checkStudentAccess(req, document.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, document.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
@@ -456,16 +459,16 @@ documentsRouter.post('/:id/upload', authenticate, upload.single('file'), async (
         const { changeSummary } = req.body;
         const nextVersion = document.currentVersion + 1;
         const fileUrl = `/uploads/${req.file.filename}`;
-        const [updatedDoc, version] = await prisma.$transaction([
-            prisma.studentDocument.update({
+        const [updatedDoc, version] = await prisma_js_1.prisma.$transaction([
+            prisma_js_1.prisma.studentDocument.update({
                 where: { id: documentId },
                 data: {
                     currentVersion: nextVersion,
-                    status: DocumentStatus.SUBMITTED,
+                    status: client_1.DocumentStatus.SUBMITTED,
                     submittedDate: new Date(),
                 },
             }),
-            prisma.documentVersion.create({
+            prisma_js_1.prisma.documentVersion.create({
                 data: {
                     studentDocumentId: documentId,
                     versionNumber: nextVersion,
@@ -475,7 +478,7 @@ documentsRouter.post('/:id/upload', authenticate, upload.single('file'), async (
                     fileType: req.file.mimetype,
                     uploadedById: req.user.id,
                     changeSummary: changeSummary || `Version ${nextVersion} upload`,
-                    status: DocumentStatus.SUBMITTED,
+                    status: client_1.DocumentStatus.SUBMITTED,
                 },
             }),
         ]);

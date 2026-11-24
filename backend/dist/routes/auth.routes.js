@@ -1,12 +1,18 @@
-import { Router } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { prisma } from '../prisma.js';
-import { authenticate } from '../middleware/auth.js';
-export const authRouter = Router();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.authRouter = void 0;
+const express_1 = require("express");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+exports.authRouter = (0, express_1.Router)();
 const loginRateLimitMap = new Map();
 // POST /api/auth/login
-authRouter.post('/login', async (req, res) => {
+exports.authRouter.post('/login', async (req, res) => {
     try {
         const rawIdentifier = (req.body.email || req.body.username || req.body.identifier || '').trim();
         const identifier = rawIdentifier.toLowerCase();
@@ -36,7 +42,7 @@ authRouter.post('/login', async (req, res) => {
             });
             return;
         }
-        const user = await prisma.user.findFirst({
+        const user = await prisma_js_1.prisma.user.findFirst({
             where: {
                 OR: [
                     { email: identifier },
@@ -67,20 +73,20 @@ authRouter.post('/login', async (req, res) => {
             return;
         }
         // Check exact password or trimmed password or case-variant for resilience
-        let isMatch = await bcrypt.compare(rawPassword, user.passwordHash);
+        let isMatch = await bcryptjs_1.default.compare(rawPassword, user.passwordHash);
         if (!isMatch && cleanPassword !== rawPassword) {
-            isMatch = await bcrypt.compare(cleanPassword, user.passwordHash);
+            isMatch = await bcryptjs_1.default.compare(cleanPassword, user.passwordHash);
         }
         // Also support capitalized first letter (e.g. admin@123 -> Admin@123)
         if (!isMatch) {
             const capitalized = cleanPassword.charAt(0).toUpperCase() + cleanPassword.slice(1);
             if (capitalized !== cleanPassword) {
-                isMatch = await bcrypt.compare(capitalized, user.passwordHash);
+                isMatch = await bcryptjs_1.default.compare(capitalized, user.passwordHash);
             }
         }
         // Also support lowercase variant if standard password fails
         if (!isMatch && cleanPassword.toLowerCase() !== cleanPassword) {
-            isMatch = await bcrypt.compare(cleanPassword.toLowerCase(), user.passwordHash);
+            isMatch = await bcryptjs_1.default.compare(cleanPassword.toLowerCase(), user.passwordHash);
         }
         if (!isMatch) {
             console.warn(`[AUTH] Password mismatch for user: "${user.email}"`);
@@ -97,7 +103,7 @@ authRouter.post('/login', async (req, res) => {
         // Reset rate limiter on successful login
         loginRateLimitMap.delete(identifier);
         // Audit log
-        await prisma.activityLog.create({
+        await prisma_js_1.prisma.activityLog.create({
             data: {
                 actorId: user.id,
                 actorName: user.fullName,
@@ -117,7 +123,7 @@ authRouter.post('/login', async (req, res) => {
         };
         const secret = process.env.JWT_SECRET || 'pinnacle-mindz-secret';
         const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
-        const token = jwt.sign(payload, secret, { expiresIn: expiresIn });
+        const token = jsonwebtoken_1.default.sign(payload, secret, { expiresIn: expiresIn });
         // HTTP-only cookie
         res.cookie('token', token, {
             httpOnly: true,
@@ -154,14 +160,14 @@ authRouter.post('/login', async (req, res) => {
     }
 });
 // POST /api/auth/logout
-authRouter.post('/logout', (req, res) => {
+exports.authRouter.post('/logout', (req, res) => {
     res.clearCookie('token');
     res.json({ message: 'Logged out successfully' });
 });
 // GET /api/auth/me
-authRouter.get('/me', authenticate, async (req, res) => {
+exports.authRouter.get('/me', auth_js_1.authenticate, async (req, res) => {
     try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma_js_1.prisma.user.findUnique({
             where: { id: req.user.id },
             select: {
                 id: true,
@@ -193,7 +199,7 @@ authRouter.get('/me', authenticate, async (req, res) => {
     }
 });
 // POST /api/auth/change-password
-authRouter.post('/change-password', authenticate, async (req, res) => {
+exports.authRouter.post('/change-password', auth_js_1.authenticate, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
         if (!currentPassword || !newPassword) {
@@ -204,18 +210,18 @@ authRouter.post('/change-password', authenticate, async (req, res) => {
             res.status(400).json({ message: 'New password must be at least 6 characters.' });
             return;
         }
-        const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+        const user = await prisma_js_1.prisma.user.findUnique({ where: { id: req.user.id } });
         if (!user) {
             res.status(404).json({ message: 'User not found' });
             return;
         }
-        const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+        const isMatch = await bcryptjs_1.default.compare(currentPassword, user.passwordHash);
         if (!isMatch) {
             res.status(400).json({ message: 'Current password is incorrect.' });
             return;
         }
-        const newHash = await bcrypt.hash(newPassword, 10);
-        await prisma.user.update({
+        const newHash = await bcryptjs_1.default.hash(newPassword, 10);
+        await prisma_js_1.prisma.user.update({
             where: { id: user.id },
             data: { passwordHash: newHash },
         });

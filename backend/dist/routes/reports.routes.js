@@ -1,15 +1,21 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, requireRoles } from '../middleware/auth.js';
-import { Role } from '@prisma/client';
-import { PdfService } from '../services/pdfService.js';
-import ExcelJS from 'exceljs';
-export const reportsRouter = Router();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.reportsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+const pdfService_js_1 = require("../services/pdfService.js");
+const exceljs_1 = __importDefault(require("exceljs"));
+exports.reportsRouter = (0, express_1.Router)();
 // GET /api/reports/student-progress-pdf/:studentId - Stream branded A4 PDF report
-reportsRouter.get('/student-progress-pdf/:studentId', authenticate, async (req, res) => {
+exports.reportsRouter.get('/student-progress-pdf/:studentId', auth_js_1.authenticate, async (req, res) => {
     try {
         const studentId = req.params.studentId;
-        const pdfBuffer = await PdfService.generateStudentProgressReport(studentId);
+        const pdfBuffer = await pdfService_js_1.PdfService.generateStudentProgressReport(studentId);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="progress_report_${studentId}.pdf"`);
         res.send(pdfBuffer);
@@ -20,10 +26,10 @@ reportsRouter.get('/student-progress-pdf/:studentId', authenticate, async (req, 
     }
 });
 // GET /api/reports/mentor-performance - Mentor Workload, Tasks, Progress Updates
-reportsRouter.get('/mentor-performance', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR), async (req, res) => {
+exports.reportsRouter.get('/mentor-performance', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR), async (req, res) => {
     try {
-        const mentors = await prisma.user.findMany({
-            where: { role: Role.MENTOR, isActive: true },
+        const mentors = await prisma_js_1.prisma.user.findMany({
+            where: { role: client_1.Role.MENTOR, isActive: true },
             include: {
                 mentoredStudents: {
                     include: {
@@ -85,9 +91,9 @@ reportsRouter.get('/mentor-performance', authenticate, requireRoles(Role.ADMIN, 
     }
 });
 // GET /api/reports/documentation-status - Documentation audit across all students
-reportsRouter.get('/documentation-status', authenticate, async (req, res) => {
+exports.reportsRouter.get('/documentation-status', auth_js_1.authenticate, async (req, res) => {
     try {
-        const students = await prisma.student.findMany({
+        const students = await prisma_js_1.prisma.student.findMany({
             where: { status: 'ACTIVE' },
             include: {
                 assignedMentor: { select: { fullName: true } },
@@ -134,9 +140,9 @@ reportsRouter.get('/documentation-status', authenticate, async (req, res) => {
     }
 });
 // GET /api/reports/document-submissions - Specific submissions report
-reportsRouter.get('/document-submissions', authenticate, async (req, res) => {
+exports.reportsRouter.get('/document-submissions', auth_js_1.authenticate, async (req, res) => {
     try {
-        const submissions = await prisma.studentDocument.findMany({
+        const submissions = await prisma_js_1.prisma.studentDocument.findMany({
             where: {
                 submissionUrl: { not: null },
             },
@@ -163,9 +169,9 @@ reportsRouter.get('/document-submissions', authenticate, async (req, res) => {
     }
 });
 // GET /api/reports/task-audit - Task completion and GitHub tracking audit
-reportsRouter.get('/task-audit', authenticate, async (req, res) => {
+exports.reportsRouter.get('/task-audit', auth_js_1.authenticate, async (req, res) => {
     try {
-        const tasks = await prisma.projectTask.findMany({
+        const tasks = await prisma_js_1.prisma.projectTask.findMany({
             orderBy: { updatedAt: 'desc' },
             include: {
                 project: {
@@ -197,12 +203,12 @@ reportsRouter.get('/task-audit', authenticate, async (req, res) => {
     }
 });
 // GET /api/reports/deadlines - Overdue and upcoming milestones and tasks
-reportsRouter.get('/deadlines', authenticate, async (req, res) => {
+exports.reportsRouter.get('/deadlines', auth_js_1.authenticate, async (req, res) => {
     try {
         const now = new Date();
         const next14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
         const [overdueTasks, upcomingTasks, upcomingMilestones] = await Promise.all([
-            prisma.projectTask.findMany({
+            prisma_js_1.prisma.projectTask.findMany({
                 where: {
                     status: { in: ['TO_DO', 'IN_PROGRESS', 'NOT_STARTED', 'REVISION_REQUIRED'] },
                     dueDate: { lt: now },
@@ -213,7 +219,7 @@ reportsRouter.get('/deadlines', authenticate, async (req, res) => {
                 },
                 orderBy: { dueDate: 'asc' },
             }),
-            prisma.projectTask.findMany({
+            prisma_js_1.prisma.projectTask.findMany({
                 where: {
                     status: { in: ['TO_DO', 'IN_PROGRESS', 'NOT_STARTED'] },
                     dueDate: { gte: now, lte: next14Days },
@@ -224,7 +230,7 @@ reportsRouter.get('/deadlines', authenticate, async (req, res) => {
                 },
                 orderBy: { dueDate: 'asc' },
             }),
-            prisma.projectMilestone.findMany({
+            prisma_js_1.prisma.projectMilestone.findMany({
                 where: {
                     status: { in: ['TO_DO', 'IN_PROGRESS'] },
                     dueDate: { gte: now, lte: next14Days },
@@ -246,10 +252,10 @@ reportsRouter.get('/deadlines', authenticate, async (req, res) => {
     }
 });
 // GET /api/reports/export-csv - Export dataset to Excel/CSV
-reportsRouter.get('/export-csv', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR), async (req, res) => {
+exports.reportsRouter.get('/export-csv', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR), async (req, res) => {
     try {
         const { type = 'students' } = req.query;
-        const workbook = new ExcelJS.Workbook();
+        const workbook = new exceljs_1.default.Workbook();
         const worksheet = workbook.addWorksheet('Export Data');
         if (type === 'students') {
             worksheet.columns = [
@@ -268,7 +274,7 @@ reportsRouter.get('/export-csv', authenticate, requireRoles(Role.ADMIN, Role.SUP
                 { header: 'Status', key: 'status', width: 12 },
                 { header: 'Active Account', key: 'isActive', width: 14 },
             ];
-            const students = await prisma.student.findMany({
+            const students = await prisma_js_1.prisma.student.findMany({
                 include: {
                     project: true,
                     assignedMentor: true,
@@ -307,7 +313,7 @@ reportsRouter.get('/export-csv', authenticate, requireRoles(Role.ADMIN, Role.SUP
                 { header: 'Recorded By', key: 'recordedBy', width: 20 },
                 { header: 'Remarks', key: 'remarks', width: 30 },
             ];
-            const payments = await prisma.payment.findMany({
+            const payments = await prisma_js_1.prisma.payment.findMany({
                 where: { isVoided: false },
                 include: { student: true, recordedBy: true },
                 orderBy: { paymentDate: 'desc' },
@@ -337,7 +343,7 @@ reportsRouter.get('/export-csv', authenticate, requireRoles(Role.ADMIN, Role.SUP
                 { header: 'Submitted At', key: 'submittedAt', width: 18 },
                 { header: 'Reviewer Feedback', key: 'feedback', width: 35 },
             ];
-            const docs = await prisma.studentDocument.findMany({
+            const docs = await prisma_js_1.prisma.studentDocument.findMany({
                 where: { submissionUrl: { not: null } },
                 include: { student: true },
                 orderBy: { submittedAt: 'desc' },

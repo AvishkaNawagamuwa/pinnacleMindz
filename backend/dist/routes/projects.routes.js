@@ -1,12 +1,15 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, checkStudentAccess } from '../middleware/auth.js';
-export const projectsRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.projectsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+exports.projectsRouter = (0, express_1.Router)();
 // PUT /api/projects/:id - Update project info (title, scope, stack, stage)
-projectsRouter.put('/:id', authenticate, async (req, res) => {
+exports.projectsRouter.put('/:id', auth_js_1.authenticate, async (req, res) => {
     try {
         const projectId = req.params.id;
-        const project = await prisma.project.findUnique({
+        const project = await prisma_js_1.prisma.project.findUnique({
             where: { id: projectId },
             select: { id: true, studentId: true, title: true, currentStage: true, techStack: true },
         });
@@ -14,7 +17,7 @@ projectsRouter.put('/:id', authenticate, async (req, res) => {
             res.status(404).json({ message: 'Project not found' });
             return;
         }
-        const access = await checkStudentAccess(req, project.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, project.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
@@ -22,7 +25,7 @@ projectsRouter.put('/:id', authenticate, async (req, res) => {
         const { title, idea, problemStatement, proposedSolution, mainObjectives, mainModules, techStack, category, currentStage, completionPercentage, githubRepoUrl, demoUrl, technicalRemarks, changeReason, } = req.body;
         // Track history if title or stage changed
         if (title && title !== project.title) {
-            await prisma.projectHistory.create({
+            await prisma_js_1.prisma.projectHistory.create({
                 data: {
                     projectId: project.id,
                     fieldChanged: 'title',
@@ -34,7 +37,7 @@ projectsRouter.put('/:id', authenticate, async (req, res) => {
             });
         }
         if (currentStage && currentStage !== project.currentStage) {
-            await prisma.projectHistory.create({
+            await prisma_js_1.prisma.projectHistory.create({
                 data: {
                     projectId: project.id,
                     fieldChanged: 'currentStage',
@@ -45,7 +48,7 @@ projectsRouter.put('/:id', authenticate, async (req, res) => {
                 },
             });
         }
-        const updated = await prisma.project.update({
+        const updated = await prisma_js_1.prisma.project.update({
             where: { id: projectId },
             data: {
                 title,
@@ -71,21 +74,21 @@ projectsRouter.put('/:id', authenticate, async (req, res) => {
     }
 });
 // POST /api/projects/:id/milestones - Add milestone
-projectsRouter.post('/:id/milestones', authenticate, async (req, res) => {
+exports.projectsRouter.post('/:id/milestones', auth_js_1.authenticate, async (req, res) => {
     try {
         const projectId = req.params.id;
-        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        const project = await prisma_js_1.prisma.project.findUnique({ where: { id: projectId } });
         if (!project) {
             res.status(404).json({ message: 'Project not found' });
             return;
         }
-        const access = await checkStudentAccess(req, project.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, project.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
         const { title, description, stage, weight = 10.0, dueDate, orderIndex } = req.body;
-        const milestone = await prisma.projectMilestone.create({
+        const milestone = await prisma_js_1.prisma.projectMilestone.create({
             data: {
                 projectId,
                 title,
@@ -103,21 +106,21 @@ projectsRouter.post('/:id/milestones', authenticate, async (req, res) => {
     }
 });
 // PUT /api/projects/:id/milestones/:mId - Update milestone
-projectsRouter.put('/:id/milestones/:mId', authenticate, async (req, res) => {
+exports.projectsRouter.put('/:id/milestones/:mId', auth_js_1.authenticate, async (req, res) => {
     try {
         const { id: projectId, mId: milestoneId } = req.params;
-        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        const project = await prisma_js_1.prisma.project.findUnique({ where: { id: projectId } });
         if (!project) {
             res.status(404).json({ message: 'Project not found' });
             return;
         }
-        const access = await checkStudentAccess(req, project.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, project.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
         const { status, title, description, dueDate, weight } = req.body;
-        const updated = await prisma.projectMilestone.update({
+        const updated = await prisma_js_1.prisma.projectMilestone.update({
             where: { id: milestoneId },
             data: {
                 status: status,
@@ -129,13 +132,13 @@ projectsRouter.put('/:id/milestones/:mId', authenticate, async (req, res) => {
             },
         });
         // Auto-recalculate progress from weighted milestones
-        const allMilestones = await prisma.projectMilestone.findMany({ where: { projectId } });
+        const allMilestones = await prisma_js_1.prisma.projectMilestone.findMany({ where: { projectId } });
         const totalWeight = allMilestones.reduce((acc, m) => acc + m.weight, 0);
         const completedWeight = allMilestones
             .filter((m) => m.status === 'COMPLETED')
             .reduce((acc, m) => acc + m.weight, 0);
         const calcPercentage = totalWeight > 0 ? Math.min(100, (completedWeight / totalWeight) * 100) : 0;
-        await prisma.project.update({
+        await prisma_js_1.prisma.project.update({
             where: { id: projectId },
             data: { completionPercentage: Math.round(calcPercentage * 10) / 10 },
         });
@@ -146,16 +149,16 @@ projectsRouter.put('/:id/milestones/:mId', authenticate, async (req, res) => {
     }
 });
 // POST /api/projects/:id/recalculate-progress
-projectsRouter.post('/:id/recalculate-progress', authenticate, async (req, res) => {
+exports.projectsRouter.post('/:id/recalculate-progress', auth_js_1.authenticate, async (req, res) => {
     try {
         const projectId = req.params.id;
-        const allMilestones = await prisma.projectMilestone.findMany({ where: { projectId } });
+        const allMilestones = await prisma_js_1.prisma.projectMilestone.findMany({ where: { projectId } });
         const totalWeight = allMilestones.reduce((acc, m) => acc + m.weight, 0);
         const completedWeight = allMilestones
             .filter((m) => m.status === 'COMPLETED')
             .reduce((acc, m) => acc + m.weight, 0);
         const calcPercentage = totalWeight > 0 ? Math.min(100, (completedWeight / totalWeight) * 100) : 0;
-        const updated = await prisma.project.update({
+        const updated = await prisma_js_1.prisma.project.update({
             where: { id: projectId },
             data: { completionPercentage: Math.round(calcPercentage * 10) / 10 },
         });

@@ -1,20 +1,23 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, requireRoles } from '../middleware/auth.js';
-import { InstallmentStatus, Role } from '@prisma/client';
-import { PdfService } from '../services/pdfService.js';
-export const paymentsRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.paymentsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+const pdfService_js_1 = require("../services/pdfService.js");
+exports.paymentsRouter = (0, express_1.Router)();
 // Middleware: Verify payment access
 const authorizePaymentAccess = async (req, res, next) => {
-    if (req.user.role === Role.ADMIN)
+    if (req.user.role === client_1.Role.ADMIN)
         return next();
-    if (req.user.role === Role.SUPERVISOR) {
+    if (req.user.role === client_1.Role.SUPERVISOR) {
         return next();
     }
-    if (req.user.role === Role.STUDENT) {
+    if (req.user.role === client_1.Role.STUDENT) {
         // If accessing receipt PDF, check if payment belongs to this student
         if (req.params.id) {
-            const payment = await prisma.payment.findUnique({
+            const payment = await prisma_js_1.prisma.payment.findUnique({
                 where: { id: req.params.id },
                 select: { student: { select: { userId: true } } },
             });
@@ -26,9 +29,9 @@ const authorizePaymentAccess = async (req, res, next) => {
     return res.status(403).json({ message: 'Forbidden: You do not have access to financial records.' });
 };
 // GET /api/payments/dashboard - Financial summary & collection metrics
-paymentsRouter.get('/dashboard', authenticate, authorizePaymentAccess, async (req, res) => {
+exports.paymentsRouter.get('/dashboard', auth_js_1.authenticate, authorizePaymentAccess, async (req, res) => {
     try {
-        const feeAgreements = await prisma.studentFeeAgreement.findMany({
+        const feeAgreements = await prisma_js_1.prisma.studentFeeAgreement.findMany({
             include: {
                 payments: { where: { isVoided: false } },
                 installments: true,
@@ -64,7 +67,7 @@ paymentsRouter.get('/dashboard', authenticate, authorizePaymentAccess, async (re
         }
         const outstandingBalance = Math.max(0, totalExpectedRevenue - totalCollectedRevenue);
         // Monthly collection aggregation for charts
-        const payments = await prisma.payment.findMany({
+        const payments = await prisma_js_1.prisma.payment.findMany({
             where: { isVoided: false },
             orderBy: { paymentDate: 'asc' },
             select: { amount: true, paymentDate: true },
@@ -95,7 +98,7 @@ paymentsRouter.get('/dashboard', authenticate, authorizePaymentAccess, async (re
     }
 });
 // GET /api/payments - List all payment transactions
-paymentsRouter.get('/', authenticate, authorizePaymentAccess, async (req, res) => {
+exports.paymentsRouter.get('/', auth_js_1.authenticate, authorizePaymentAccess, async (req, res) => {
     try {
         const { studentId, search, limit = '100' } = req.query;
         const where = {};
@@ -109,7 +112,7 @@ paymentsRouter.get('/', authenticate, authorizePaymentAccess, async (req, res) =
                 { student: { registrationNumber: { contains: String(search), mode: 'insensitive' } } },
             ];
         }
-        const payments = await prisma.payment.findMany({
+        const payments = await prisma_js_1.prisma.payment.findMany({
             where,
             orderBy: { paymentDate: 'desc' },
             take: parseInt(limit, 10),
@@ -126,14 +129,14 @@ paymentsRouter.get('/', authenticate, authorizePaymentAccess, async (req, res) =
     }
 });
 // POST /api/payments - Record a payment (Admin only)
-paymentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.paymentsRouter.post('/', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const { studentId, amount, paymentMethod = 'BANK_TRANSFER', referenceNumber, receiptNumber, paymentDate = new Date(), remarks, } = req.body;
         if (!studentId || !amount || Number(amount) <= 0) {
             res.status(400).json({ message: 'studentId and valid payment amount are required.' });
             return;
         }
-        const student = await prisma.student.findUnique({
+        const student = await prisma_js_1.prisma.student.findUnique({
             where: { id: studentId },
             include: {
                 feeAgreement: {
@@ -154,7 +157,7 @@ paymentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
             finalReceiptNumber = `PM-RCP-${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 90 + 10)}`;
         }
         else {
-            const existingReceipt = await prisma.payment.findUnique({
+            const existingReceipt = await prisma_js_1.prisma.payment.findUnique({
                 where: { receiptNumber: finalReceiptNumber },
             });
             if (existingReceipt) {
@@ -163,7 +166,7 @@ paymentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
             }
         }
         const paymentIdCode = `RCP-${new Date().getFullYear()}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const newPayment = await prisma.$transaction(async (tx) => {
+        const newPayment = await prisma_js_1.prisma.$transaction(async (tx) => {
             // 1. Create Payment
             const payment = await tx.payment.create({
                 data: {
@@ -184,11 +187,11 @@ paymentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
                 },
             });
             // 2. Mark earliest unpaid installment as paid if applicable
-            const unpaidInstallment = student.feeAgreement.installments.find((inst) => inst.status !== InstallmentStatus.PAID);
+            const unpaidInstallment = student.feeAgreement.installments.find((inst) => inst.status !== client_1.InstallmentStatus.PAID);
             if (unpaidInstallment) {
                 await tx.paymentInstallment.update({
                     where: { id: unpaidInstallment.id },
-                    data: { status: InstallmentStatus.PAID, paidDate: new Date() },
+                    data: { status: client_1.InstallmentStatus.PAID, paidDate: new Date() },
                 });
             }
             // 3. Create Audit Log
@@ -223,7 +226,7 @@ paymentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
     }
 });
 // PUT /api/payments/:id/void - Void payment with audit log (Admin only)
-paymentsRouter.put('/:id/void', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.paymentsRouter.put('/:id/void', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const paymentId = req.params.id;
         const { voidReason } = req.body;
@@ -231,7 +234,7 @@ paymentsRouter.put('/:id/void', authenticate, requireRoles(Role.ADMIN), async (r
             res.status(400).json({ message: 'Reason for voiding transaction is required for audit purposes.' });
             return;
         }
-        const payment = await prisma.payment.findUnique({
+        const payment = await prisma_js_1.prisma.payment.findUnique({
             where: { id: paymentId },
         });
         if (!payment) {
@@ -242,7 +245,7 @@ paymentsRouter.put('/:id/void', authenticate, requireRoles(Role.ADMIN), async (r
             res.status(400).json({ message: 'Payment is already voided' });
             return;
         }
-        const updated = await prisma.$transaction(async (tx) => {
+        const updated = await prisma_js_1.prisma.$transaction(async (tx) => {
             const p = await tx.payment.update({
                 where: { id: paymentId },
                 data: {
@@ -269,10 +272,10 @@ paymentsRouter.put('/:id/void', authenticate, requireRoles(Role.ADMIN), async (r
     }
 });
 // GET /api/payments/:id/receipt-pdf - Download official PDF receipt
-paymentsRouter.get('/:id/receipt-pdf', authenticate, authorizePaymentAccess, async (req, res) => {
+exports.paymentsRouter.get('/:id/receipt-pdf', auth_js_1.authenticate, authorizePaymentAccess, async (req, res) => {
     try {
         const paymentId = req.params.id;
-        const pdfBuffer = await PdfService.generatePaymentReceiptPdf(paymentId);
+        const pdfBuffer = await pdfService_js_1.PdfService.generatePaymentReceiptPdf(paymentId);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="receipt_${paymentId}.pdf"`);
         res.send(pdfBuffer);

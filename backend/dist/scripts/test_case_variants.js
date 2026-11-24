@@ -1,3 +1,5 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 async function test() {
     const tests = [
         { identifier: 'admin', password: 'Admin@123', label: 'Admin uppercase A' },
@@ -20,4 +22,3 @@ async function test() {
     }
 }
 test().catch(console.error);
-export {};

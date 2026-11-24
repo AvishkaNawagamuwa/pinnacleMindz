@@ -33,17 +33,17 @@ __export(index_exports, {
   default: () => index_default
 });
 module.exports = __toCommonJS(index_exports);
-var import_express17 = __toESM(require("express"), 1);
-var import_cors = __toESM(require("cors"), 1);
-var import_cookie_parser = __toESM(require("cookie-parser"), 1);
-var import_morgan = __toESM(require("morgan"), 1);
-var import_dotenv = __toESM(require("dotenv"), 1);
-var import_path3 = __toESM(require("path"), 1);
+var import_express17 = __toESM(require("express"));
+var import_cors = __toESM(require("cors"));
+var import_cookie_parser = __toESM(require("cookie-parser"));
+var import_morgan = __toESM(require("morgan"));
+var import_dotenv = __toESM(require("dotenv"));
+var import_path3 = __toESM(require("path"));
 
 // src/routes/auth.routes.ts
 var import_express = require("express");
-var import_bcryptjs = __toESM(require("bcryptjs"), 1);
-var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"), 1);
+var import_bcryptjs = __toESM(require("bcryptjs"));
+var import_jsonwebtoken2 = __toESM(require("jsonwebtoken"));
 
 // src/prisma.ts
 var import_client = require("@prisma/client");
@@ -56,7 +56,7 @@ var prisma = globalForPrisma.prisma || new import_client.PrismaClient({
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // src/middleware/auth.ts
-var import_jsonwebtoken = __toESM(require("jsonwebtoken"), 1);
+var import_jsonwebtoken = __toESM(require("jsonwebtoken"));
 var import_client2 = require("@prisma/client");
 var authenticate = async (req, res, next) => {
   try {
@@ -358,7 +358,7 @@ authRouter.post("/change-password", authenticate, async (req, res) => {
 // src/routes/students.routes.ts
 var import_express2 = require("express");
 var import_client3 = require("@prisma/client");
-var import_bcryptjs2 = __toESM(require("bcryptjs"), 1);
+var import_bcryptjs2 = __toESM(require("bcryptjs"));
 var studentsRouter = (0, import_express2.Router)();
 studentsRouter.get("/", authenticate, async (req, res) => {
   try {
@@ -1360,9 +1360,9 @@ projectsRouter.post("/:id/recalculate-progress", authenticate, async (req, res) 
 var import_express4 = require("express");
 
 // src/middleware/upload.ts
-var import_multer = __toESM(require("multer"), 1);
-var import_path = __toESM(require("path"), 1);
-var import_fs = __toESM(require("fs"), 1);
+var import_multer = __toESM(require("multer"));
+var import_path = __toESM(require("path"));
+var import_fs = __toESM(require("fs"));
 var uploadDir = import_path.default.resolve(process.cwd(), process.env.UPLOAD_DIR || "../uploads");
 if (!import_fs.default.existsSync(uploadDir)) {
   import_fs.default.mkdirSync(uploadDir, { recursive: true });
@@ -2969,8 +2969,8 @@ var import_client10 = require("@prisma/client");
 
 // src/services/pdfService.ts
 var import_date_fns2 = require("date-fns");
-var import_fs2 = __toESM(require("fs"), 1);
-var import_path2 = __toESM(require("path"), 1);
+var import_fs2 = __toESM(require("fs"));
+var import_path2 = __toESM(require("path"));
 function getLogoPath() {
   const possiblePaths = [
     import_path2.default.resolve(process.cwd(), "src/assets/logo.png"),
@@ -3988,7 +3988,7 @@ dashboardRouter.get("/student", authenticate, async (req, res) => {
 // src/routes/reports.routes.ts
 var import_express12 = require("express");
 var import_client12 = require("@prisma/client");
-var import_exceljs = __toESM(require("exceljs"), 1);
+var import_exceljs = __toESM(require("exceljs"));
 var reportsRouter = (0, import_express12.Router)();
 reportsRouter.get("/student-progress-pdf/:studentId", authenticate, async (req, res) => {
   try {
@@ -4384,7 +4384,7 @@ notificationsRouter.put("/read-all", authenticate, async (req, res) => {
 // src/routes/users.routes.ts
 var import_express14 = require("express");
 var import_client13 = require("@prisma/client");
-var import_bcryptjs3 = __toESM(require("bcryptjs"), 1);
+var import_bcryptjs3 = __toESM(require("bcryptjs"));
 var usersRouter = (0, import_express14.Router)();
 usersRouter.get("/", authenticate, async (req, res) => {
   try {
@@ -4693,7 +4693,7 @@ activityRouter.get("/", authenticate, requireRoles(import_client15.Role.ADMIN, i
 });
 
 // src/services/cronService.ts
-var import_node_cron = __toESM(require("node-cron"), 1);
+var import_node_cron = __toESM(require("node-cron"));
 var import_client16 = require("@prisma/client");
 var import_date_fns4 = require("date-fns");
 var CronService = class _CronService {

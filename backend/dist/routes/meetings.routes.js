@@ -1,10 +1,13 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, checkStudentAccess } from '../middleware/auth.js';
-import { Role } from '@prisma/client';
-export const meetingsRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.meetingsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+exports.meetingsRouter = (0, express_1.Router)();
 // GET /api/meetings - List meetings with calendar filters
-meetingsRouter.get('/', authenticate, async (req, res) => {
+exports.meetingsRouter.get('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { studentId, mentorId, supervisorId, startDate, endDate, status } = req.query;
         const where = {};
@@ -22,18 +25,18 @@ meetingsRouter.get('/', authenticate, async (req, res) => {
                 lte: new Date(String(endDate)),
             };
         }
-        if (req.user.role === Role.MENTOR && !studentId) {
+        if (req.user.role === client_1.Role.MENTOR && !studentId) {
             where.mentorId = req.user.id;
         }
-        if (req.user.role === Role.STUDENT) {
-            const student = await prisma.student.findFirst({ where: { userId: req.user.id } });
+        if (req.user.role === client_1.Role.STUDENT) {
+            const student = await prisma_js_1.prisma.student.findFirst({ where: { userId: req.user.id } });
             if (!student) {
                 res.json({ meetings: [] });
                 return;
             }
             where.studentId = student.id;
         }
-        const meetings = await prisma.meeting.findMany({
+        const meetings = await prisma_js_1.prisma.meeting.findMany({
             where,
             orderBy: { meetingDate: 'asc' },
             include: {
@@ -49,23 +52,23 @@ meetingsRouter.get('/', authenticate, async (req, res) => {
     }
 });
 // POST /api/meetings - Schedule new meeting / demo session
-meetingsRouter.post('/', authenticate, async (req, res) => {
+exports.meetingsRouter.post('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { studentId, supervisorId, meetingDate, meetingType = 'PROJECT_DISCUSSION', discussionSummary, demonstratedFeatures, issuesIdentified, decisionsMade, nextMeetingDate, followUpTasks, } = req.body;
         if (!studentId || !meetingDate || !discussionSummary) {
             res.status(400).json({ message: 'studentId, meetingDate, and discussionSummary are required' });
             return;
         }
-        const access = await checkStudentAccess(req, studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
-        const student = await prisma.student.findUnique({
+        const student = await prisma_js_1.prisma.student.findUnique({
             where: { id: studentId },
             select: { fullName: true, assignedSupervisorId: true },
         });
-        const meeting = await prisma.meeting.create({
+        const meeting = await prisma_js_1.prisma.meeting.create({
             data: {
                 studentId,
                 mentorId: req.user.id,
@@ -90,11 +93,11 @@ meetingsRouter.post('/', authenticate, async (req, res) => {
     }
 });
 // PUT /api/meetings/:id - Update meeting details or status
-meetingsRouter.put('/:id', authenticate, async (req, res) => {
+exports.meetingsRouter.put('/:id', auth_js_1.authenticate, async (req, res) => {
     try {
         const meetingId = req.params.id;
         const { status, discussionSummary, demonstratedFeatures, issuesIdentified, decisionsMade, nextMeetingDate, followUpTasks } = req.body;
-        const updated = await prisma.meeting.update({
+        const updated = await prisma_js_1.prisma.meeting.update({
             where: { id: meetingId },
             data: {
                 status: status ? status : undefined,

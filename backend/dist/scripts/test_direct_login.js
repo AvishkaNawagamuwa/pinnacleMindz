@@ -1,3 +1,5 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 async function test() {
     const payload = { identifier: 'admin', password: 'Admin@123' };
     const res = await fetch('http://127.0.0.1:5000/api/auth/login', {
@@ -19,4 +21,3 @@ async function test() {
     console.log('Student response:', dataSt.user ? `Logged in as: ${dataSt.user.fullName} (${dataSt.user.role})` : dataSt);
 }
 test().catch(console.error);
-export {};

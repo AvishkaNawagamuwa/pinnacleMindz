@@ -1,6 +1,8 @@
-import { prisma } from '../prisma.js';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const prisma_js_1 = require("../prisma.js");
 async function syncUsernames() {
-    const users = await prisma.user.findMany({
+    const users = await prisma_js_1.prisma.user.findMany({
         include: { studentProfile: true },
     });
     for (const u of users) {
@@ -9,7 +11,7 @@ async function syncUsernames() {
             if (u.studentProfile?.registrationNumber) {
                 desiredUsername = u.studentProfile.registrationNumber.trim();
             }
-            await prisma.user.update({
+            await prisma_js_1.prisma.user.update({
                 where: { id: u.id },
                 data: { username: desiredUsername },
             });
@@ -19,4 +21,4 @@ async function syncUsernames() {
 }
 syncUsernames()
     .catch(console.error)
-    .finally(() => prisma.$disconnect());
+    .finally(() => prisma_js_1.prisma.$disconnect());

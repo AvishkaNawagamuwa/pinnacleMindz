@@ -1,12 +1,18 @@
-import cron from 'node-cron';
-import { prisma } from '../prisma.js';
-import { NotificationType } from '@prisma/client';
-import { subDays } from 'date-fns';
-export class CronService {
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CronService = void 0;
+const node_cron_1 = __importDefault(require("node-cron"));
+const prisma_js_1 = require("../prisma.js");
+const client_1 = require("@prisma/client");
+const date_fns_1 = require("date-fns");
+class CronService {
     static init() {
         console.log('⏰ Initializing automated background cron jobs for deadlines and missing reports...');
         // Run every day at 08:00 AM
-        cron.schedule('0 8 * * *', async () => {
+        node_cron_1.default.schedule('0 8 * * *', async () => {
             try {
                 await CronService.checkMissingWeeklyUpdates();
                 await CronService.checkOverdueTasksAndDeadlines();
@@ -21,11 +27,11 @@ export class CronService {
      * according to instituteSettings.expectedReportingFrequencyDays
      */
     static async checkMissingWeeklyUpdates() {
-        const settings = (await prisma.instituteSettings.findFirst()) || {
+        const settings = (await prisma_js_1.prisma.instituteSettings.findFirst()) || {
             expectedReportingFrequencyDays: 7,
         };
-        const thresholdDate = subDays(new Date(), settings.expectedReportingFrequencyDays);
-        const activeStudents = await prisma.student.findMany({
+        const thresholdDate = (0, date_fns_1.subDays)(new Date(), settings.expectedReportingFrequencyDays);
+        const activeStudents = await prisma_js_1.prisma.student.findMany({
             where: { status: 'ACTIVE' },
             include: {
                 weeklyProgresses: {
@@ -45,21 +51,21 @@ export class CronService {
             const lastUpdateDate = latestWeekly?.createdAt || latestDaily?.date || student.registrationDate;
             if (lastUpdateDate < thresholdDate && student.assignedMentorId) {
                 // Create notification for assigned mentor
-                const existingNotif = await prisma.notification.findFirst({
+                const existingNotif = await prisma_js_1.prisma.notification.findFirst({
                     where: {
                         userId: student.assignedMentorId,
-                        type: NotificationType.MISSING_UPDATE,
+                        type: client_1.NotificationType.MISSING_UPDATE,
                         linkUrl: `/students/${student.id}`,
-                        createdAt: { gte: subDays(new Date(), 3) },
+                        createdAt: { gte: (0, date_fns_1.subDays)(new Date(), 3) },
                     },
                 });
                 if (!existingNotif) {
-                    await prisma.notification.create({
+                    await prisma_js_1.prisma.notification.create({
                         data: {
                             userId: student.assignedMentorId,
                             title: `Progress Missing: ${student.fullName}`,
                             message: `No daily or weekly progress reported for ${student.fullName} (${student.registrationNumber}) in over ${settings.expectedReportingFrequencyDays} days.`,
-                            type: NotificationType.MISSING_UPDATE,
+                            type: client_1.NotificationType.MISSING_UPDATE,
                             linkUrl: `/students/${student.id}`,
                         },
                     });
@@ -72,7 +78,7 @@ export class CronService {
      */
     static async checkOverdueTasksAndDeadlines() {
         const now = new Date();
-        const overdueTasks = await prisma.projectTask.findMany({
+        const overdueTasks = await prisma_js_1.prisma.projectTask.findMany({
             where: {
                 status: { in: ['TO_DO', 'IN_PROGRESS'] },
                 dueDate: { lt: now },
@@ -85,20 +91,20 @@ export class CronService {
         });
         for (const task of overdueTasks) {
             if (task.assignedMentorId) {
-                const existing = await prisma.notification.findFirst({
+                const existing = await prisma_js_1.prisma.notification.findFirst({
                     where: {
                         userId: task.assignedMentorId,
-                        type: NotificationType.OVERDUE_TASK,
-                        createdAt: { gte: subDays(new Date(), 2) },
+                        type: client_1.NotificationType.OVERDUE_TASK,
+                        createdAt: { gte: (0, date_fns_1.subDays)(new Date(), 2) },
                     },
                 });
                 if (!existing) {
-                    await prisma.notification.create({
+                    await prisma_js_1.prisma.notification.create({
                         data: {
                             userId: task.assignedMentorId,
                             title: `Overdue Task: ${task.title}`,
                             message: `Task for ${task.project.student.fullName} was due on ${task.dueDate?.toLocaleDateString()}.`,
-                            type: NotificationType.OVERDUE_TASK,
+                            type: client_1.NotificationType.OVERDUE_TASK,
                             linkUrl: `/students/${task.project.student.id}`,
                         },
                     });
@@ -107,3 +113,4 @@ export class CronService {
         }
     }
 }
+exports.CronService = CronService;

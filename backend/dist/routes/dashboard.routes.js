@@ -1,37 +1,40 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate } from '../middleware/auth.js';
-import { Role } from '@prisma/client';
-import { subDays } from 'date-fns';
-export const dashboardRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.dashboardRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+const date_fns_1 = require("date-fns");
+exports.dashboardRouter = (0, express_1.Router)();
 // GET /api/dashboard/admin - Comprehensive Institute Admin Dashboard
-dashboardRouter.get('/admin', authenticate, async (req, res) => {
+exports.dashboardRouter.get('/admin', auth_js_1.authenticate, async (req, res) => {
     try {
-        const settings = (await prisma.instituteSettings.findFirst()) || {
+        const settings = (await prisma_js_1.prisma.instituteSettings.findFirst()) || {
             expectedReportingFrequencyDays: 7,
         };
-        const thresholdDate = subDays(new Date(), settings.expectedReportingFrequencyDays);
+        const thresholdDate = (0, date_fns_1.subDays)(new Date(), settings.expectedReportingFrequencyDays);
         const [totalRegistered, activeStudents, completedProjects, pendingDocs, overdueTasks, upcomingDeadlinesCount, allFeeAgreements, allPayments, mentorsWorkload, projectsByStage, recentActivities, upcomingDemos,] = await Promise.all([
-            prisma.student.count(),
-            prisma.student.count({ where: { status: 'ACTIVE' } }),
-            prisma.project.count({ where: { currentStage: 'COMPLETED' } }),
-            prisma.studentDocument.count({ where: { status: { in: ['NOT_STARTED', 'IN_PROGRESS', 'READY_FOR_REVIEW', 'REVISION_REQUIRED'] } } }),
-            prisma.projectTask.count({ where: { status: { in: ['TO_DO', 'IN_PROGRESS'] }, dueDate: { lt: new Date() } } }),
-            prisma.projectTask.count({
+            prisma_js_1.prisma.student.count(),
+            prisma_js_1.prisma.student.count({ where: { status: 'ACTIVE' } }),
+            prisma_js_1.prisma.project.count({ where: { currentStage: 'COMPLETED' } }),
+            prisma_js_1.prisma.studentDocument.count({ where: { status: { in: ['NOT_STARTED', 'IN_PROGRESS', 'READY_FOR_REVIEW', 'REVISION_REQUIRED'] } } }),
+            prisma_js_1.prisma.projectTask.count({ where: { status: { in: ['TO_DO', 'IN_PROGRESS'] }, dueDate: { lt: new Date() } } }),
+            prisma_js_1.prisma.projectTask.count({
                 where: {
                     status: { in: ['TO_DO', 'IN_PROGRESS'] },
                     dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
                 },
             }),
-            prisma.studentFeeAgreement.findMany({
+            prisma_js_1.prisma.studentFeeAgreement.findMany({
                 select: { finalPayableAmount: true },
             }),
-            prisma.payment.findMany({
+            prisma_js_1.prisma.payment.findMany({
                 where: { isVoided: false },
                 select: { amount: true, paymentDate: true },
             }),
-            prisma.user.findMany({
-                where: { role: Role.MENTOR, isActive: true },
+            prisma_js_1.prisma.user.findMany({
+                where: { role: client_1.Role.MENTOR, isActive: true },
                 select: {
                     id: true,
                     fullName: true,
@@ -42,15 +45,15 @@ dashboardRouter.get('/admin', authenticate, async (req, res) => {
                     },
                 },
             }),
-            prisma.project.groupBy({
+            prisma_js_1.prisma.project.groupBy({
                 by: ['currentStage'],
                 _count: true,
             }),
-            prisma.activityLog.findMany({
+            prisma_js_1.prisma.activityLog.findMany({
                 orderBy: { createdAt: 'desc' },
                 take: 8,
             }),
-            prisma.meeting.findMany({
+            prisma_js_1.prisma.meeting.findMany({
                 where: {
                     meetingDate: { gte: new Date() },
                     status: 'SCHEDULED',
@@ -67,7 +70,7 @@ dashboardRouter.get('/admin', authenticate, async (req, res) => {
         const totalCollectedPayments = allPayments.reduce((sum, p) => sum + p.amount, 0);
         const outstandingBalances = Math.max(0, totalExpectedFees - totalCollectedPayments);
         // Students with missing updates
-        const activeStudentsList = await prisma.student.findMany({
+        const activeStudentsList = await prisma_js_1.prisma.student.findMany({
             where: { status: 'ACTIVE' },
             include: {
                 weeklyProgresses: { orderBy: { weekStartDate: 'desc' }, take: 1 },
@@ -136,24 +139,24 @@ dashboardRouter.get('/admin', authenticate, async (req, res) => {
     }
 });
 // GET /api/dashboard/supervisor - Supervisor Monitoring Dashboard
-dashboardRouter.get('/supervisor', authenticate, async (req, res) => {
+exports.dashboardRouter.get('/supervisor', auth_js_1.authenticate, async (req, res) => {
     try {
-        const settings = (await prisma.instituteSettings.findFirst()) || {
+        const settings = (await prisma_js_1.prisma.instituteSettings.findFirst()) || {
             expectedReportingFrequencyDays: 7,
         };
         const [totalSupervised, pendingReviewsCount, overdueMilestonesCount, openCorrectionsCount, projects, mentorsWorkload, recentSubmissions, upcomingAcademicDeadlines,] = await Promise.all([
-            prisma.student.count({ where: { status: 'ACTIVE' } }),
-            prisma.studentDocument.count({ where: { status: 'READY_FOR_REVIEW' } }),
-            prisma.projectMilestone.count({ where: { status: { in: ['TO_DO', 'IN_PROGRESS'] }, dueDate: { lt: new Date() } } }),
-            prisma.correction.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
-            prisma.project.findMany({
+            prisma_js_1.prisma.student.count({ where: { status: 'ACTIVE' } }),
+            prisma_js_1.prisma.studentDocument.count({ where: { status: 'READY_FOR_REVIEW' } }),
+            prisma_js_1.prisma.projectMilestone.count({ where: { status: { in: ['TO_DO', 'IN_PROGRESS'] }, dueDate: { lt: new Date() } } }),
+            prisma_js_1.prisma.correction.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+            prisma_js_1.prisma.project.findMany({
                 select: {
                     completionPercentage: true,
                     currentStage: true,
                 },
             }),
-            prisma.user.findMany({
-                where: { role: Role.MENTOR, isActive: true },
+            prisma_js_1.prisma.user.findMany({
+                where: { role: client_1.Role.MENTOR, isActive: true },
                 select: {
                     id: true,
                     fullName: true,
@@ -166,7 +169,7 @@ dashboardRouter.get('/supervisor', authenticate, async (req, res) => {
                     },
                 },
             }),
-            prisma.studentDocument.findMany({
+            prisma_js_1.prisma.studentDocument.findMany({
                 where: { status: 'READY_FOR_REVIEW' },
                 orderBy: { updatedAt: 'desc' },
                 take: 6,
@@ -175,7 +178,7 @@ dashboardRouter.get('/supervisor', authenticate, async (req, res) => {
                     versions: { orderBy: { versionNumber: 'desc' }, take: 1 },
                 },
             }),
-            prisma.evaluation.findMany({
+            prisma_js_1.prisma.evaluation.findMany({
                 where: { status: 'SCHEDULED' },
                 orderBy: { scheduledDate: 'asc' },
                 take: 5,
@@ -191,7 +194,7 @@ dashboardRouter.get('/supervisor', authenticate, async (req, res) => {
         const mentorPerformance = mentorsWorkload.map((m) => {
             const activeCount = m.mentoredStudents.length;
             let missingCount = 0;
-            const threshold = subDays(new Date(), settings.expectedReportingFrequencyDays);
+            const threshold = (0, date_fns_1.subDays)(new Date(), settings.expectedReportingFrequencyDays);
             for (const st of m.mentoredStudents) {
                 const lastWeekly = st.weeklyProgresses[0];
                 if (!lastWeekly || lastWeekly.createdAt < threshold) {
@@ -222,13 +225,13 @@ dashboardRouter.get('/supervisor', authenticate, async (req, res) => {
     }
 });
 // GET /api/dashboard/mentor - Mentor Personal Work Dashboard
-dashboardRouter.get('/mentor', authenticate, async (req, res) => {
+exports.dashboardRouter.get('/mentor', auth_js_1.authenticate, async (req, res) => {
     try {
         const mentorId = req.user.id;
         const now = new Date();
         const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
         const [assignedStudents, myActiveTasks, tasksDueThisWeek, pendingDocs, upcomingDemos, feedbackNeedingAction,] = await Promise.all([
-            prisma.student.findMany({
+            prisma_js_1.prisma.student.findMany({
                 where: { assignedMentorId: mentorId, status: 'ACTIVE' },
                 include: {
                     project: { select: { id: true, title: true, currentStage: true, completionPercentage: true } },
@@ -236,7 +239,7 @@ dashboardRouter.get('/mentor', authenticate, async (req, res) => {
                     corrections: { where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } },
                 },
             }),
-            prisma.projectTask.findMany({
+            prisma_js_1.prisma.projectTask.findMany({
                 where: {
                     assignedMentorId: mentorId,
                     status: { in: ['TO_DO', 'IN_PROGRESS'] },
@@ -247,20 +250,20 @@ dashboardRouter.get('/mentor', authenticate, async (req, res) => {
                     project: { select: { student: { select: { fullName: true } } } },
                 },
             }),
-            prisma.projectTask.count({
+            prisma_js_1.prisma.projectTask.count({
                 where: {
                     assignedMentorId: mentorId,
                     status: { in: ['TO_DO', 'IN_PROGRESS'] },
                     dueDate: { gte: now, lte: endOfWeek },
                 },
             }),
-            prisma.studentDocument.count({
+            prisma_js_1.prisma.studentDocument.count({
                 where: {
                     assignedMentorId: mentorId,
                     status: { in: ['NOT_STARTED', 'IN_PROGRESS', 'REVISION_REQUIRED'] },
                 },
             }),
-            prisma.meeting.findMany({
+            prisma_js_1.prisma.meeting.findMany({
                 where: {
                     mentorId,
                     meetingDate: { gte: now },
@@ -272,7 +275,7 @@ dashboardRouter.get('/mentor', authenticate, async (req, res) => {
                     student: { select: { fullName: true } },
                 },
             }),
-            prisma.correction.findMany({
+            prisma_js_1.prisma.correction.findMany({
                 where: {
                     assignedMentorId: mentorId,
                     status: { in: ['OPEN', 'IN_PROGRESS'] },
@@ -311,9 +314,9 @@ dashboardRouter.get('/mentor', authenticate, async (req, res) => {
     }
 });
 // GET /api/dashboard/student - Student Personal Project Dashboard
-dashboardRouter.get('/student', authenticate, async (req, res) => {
+exports.dashboardRouter.get('/student', auth_js_1.authenticate, async (req, res) => {
     try {
-        const student = await prisma.student.findFirst({
+        const student = await prisma_js_1.prisma.student.findFirst({
             where: { userId: req.user.id },
             include: {
                 project: {

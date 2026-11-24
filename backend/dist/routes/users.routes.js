@@ -1,19 +1,25 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, requireRoles } from '../middleware/auth.js';
-import { Role } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-export const usersRouter = Router();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.usersRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+exports.usersRouter = (0, express_1.Router)();
 // GET /api/users - List institute staff
-usersRouter.get('/', authenticate, async (req, res) => {
+exports.usersRouter.get('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { role } = req.query;
         const where = {};
         if (role)
             where.role = role;
         else
-            where.role = { in: [Role.SUPER_ADMIN, Role.ADMIN, Role.SUPERVISOR, Role.MENTOR] };
-        const users = await prisma.user.findMany({
+            where.role = { in: [client_1.Role.SUPER_ADMIN, client_1.Role.ADMIN, client_1.Role.SUPERVISOR, client_1.Role.MENTOR] };
+        const users = await prisma_js_1.prisma.user.findMany({
             where,
             orderBy: { fullName: 'asc' },
             select: {
@@ -41,10 +47,10 @@ usersRouter.get('/', authenticate, async (req, res) => {
     }
 });
 // GET /api/users/mentors-workload - Workload balancing interface for Admin
-usersRouter.get('/mentors-workload', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.usersRouter.get('/mentors-workload', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
-        const mentors = await prisma.user.findMany({
-            where: { role: Role.MENTOR },
+        const mentors = await prisma_js_1.prisma.user.findMany({
+            where: { role: client_1.Role.MENTOR },
             select: {
                 id: true,
                 fullName: true,
@@ -114,7 +120,7 @@ usersRouter.get('/mentors-workload', authenticate, requireRoles(Role.ADMIN), asy
     }
 });
 // POST /api/users - Create new supervisor or mentor (Admin only)
-usersRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.usersRouter.post('/', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const { email, username, password, fullName, role, phone } = req.body;
         if (!email || !password || !fullName || !role) {
@@ -122,7 +128,7 @@ usersRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res) =
             return;
         }
         const trimmedEmail = email.toLowerCase().trim();
-        const existing = await prisma.user.findFirst({
+        const existing = await prisma_js_1.prisma.user.findFirst({
             where: {
                 OR: [
                     { email: trimmedEmail },
@@ -134,8 +140,8 @@ usersRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res) =
             res.status(400).json({ message: 'User with this email or username already exists.' });
             return;
         }
-        const passwordHash = await bcrypt.hash(password, 10);
-        const user = await prisma.user.create({
+        const passwordHash = await bcryptjs_1.default.hash(password, 10);
+        const user = await prisma_js_1.prisma.user.create({
             data: {
                 email: trimmedEmail,
                 username: username ? username.trim() : trimmedEmail.split('@')[0],
@@ -156,7 +162,7 @@ usersRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res) =
                 createdAt: true,
             },
         });
-        await prisma.activityLog.create({
+        await prisma_js_1.prisma.activityLog.create({
             data: {
                 actorId: req.user.id,
                 actorName: req.user.fullName,
@@ -174,11 +180,11 @@ usersRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res) =
     }
 });
 // PUT /api/users/:id - Update user details or active status
-usersRouter.put('/:id', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.usersRouter.put('/:id', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const userId = req.params.id;
         const { fullName, phone, role, isActive, username } = req.body;
-        const updated = await prisma.user.update({
+        const updated = await prisma_js_1.prisma.user.update({
             where: { id: userId },
             data: {
                 fullName: fullName ? fullName.trim() : undefined,
@@ -196,7 +202,7 @@ usersRouter.put('/:id', authenticate, requireRoles(Role.ADMIN), async (req, res)
     }
 });
 // PUT /api/users/:id/reset-password - Admin reset password
-usersRouter.put('/:id/reset-password', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.usersRouter.put('/:id/reset-password', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const userId = req.params.id;
         const { newPassword } = req.body;
@@ -204,8 +210,8 @@ usersRouter.put('/:id/reset-password', authenticate, requireRoles(Role.ADMIN), a
             res.status(400).json({ message: 'Password must be at least 6 characters.' });
             return;
         }
-        const passwordHash = await bcrypt.hash(newPassword, 10);
-        await prisma.user.update({
+        const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
+        await prisma_js_1.prisma.user.update({
             where: { id: userId },
             data: { passwordHash },
         });

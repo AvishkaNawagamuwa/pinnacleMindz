@@ -1,26 +1,32 @@
-import { prisma } from '../prisma.js';
-import { format } from 'date-fns';
-import fs from 'fs';
-import path from 'path';
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PdfService = void 0;
+const prisma_js_1 = require("../prisma.js");
+const date_fns_1 = require("date-fns");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 function getLogoPath() {
     const possiblePaths = [
-        path.resolve(process.cwd(), 'src/assets/logo.png'),
-        path.resolve(process.cwd(), 'backend/src/assets/logo.png'),
-        path.resolve(process.cwd(), '../logo.png'),
-        path.resolve(process.cwd(), 'logo.png'),
+        path_1.default.resolve(process.cwd(), 'src/assets/logo.png'),
+        path_1.default.resolve(process.cwd(), 'backend/src/assets/logo.png'),
+        path_1.default.resolve(process.cwd(), '../logo.png'),
+        path_1.default.resolve(process.cwd(), 'logo.png'),
     ];
     for (const p of possiblePaths) {
-        if (fs.existsSync(p))
+        if (fs_1.default.existsSync(p))
             return p;
     }
     return null;
 }
-export class PdfService {
+class PdfService {
     /**
      * Generates a branded, professional A4 Student Project Progress Report
      */
     static async generateStudentProgressReport(studentId) {
-        const student = await prisma.student.findFirst({
+        const student = await prisma_js_1.prisma.student.findFirst({
             where: {
                 OR: [
                     { id: studentId },
@@ -61,7 +67,7 @@ export class PdfService {
         if (!student) {
             throw new Error('Student not found');
         }
-        const settings = await prisma.instituteSettings.findFirst() || {
+        const settings = await prisma_js_1.prisma.instituteSettings.findFirst() || {
             instituteName: 'Pinnacle Mindz',
             subtitle: 'Project Guidance & Progress Management',
             contactEmail: 'contact@pinnaclemindz.com',
@@ -118,7 +124,7 @@ export class PdfService {
             doc.fillColor('#00f0ff').fontSize(11).font('Helvetica-Bold');
             doc.text('PROJECT PROGRESS REPORT', doc.page.width - 200, 33, { width: 145, align: 'center' });
             doc.fillColor('#94a3b8').fontSize(7.5).font('Helvetica');
-            doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}`, doc.page.width - 200, 50, { width: 145, align: 'center' });
+            doc.text(`Generated: ${(0, date_fns_1.format)(new Date(), 'dd MMM yyyy, HH:mm')}`, doc.page.width - 200, 50, { width: 145, align: 'center' });
             doc.y = 115;
             // --- SECTION 1: STUDENT & PROJECT SUMMARY ---
             doc.fillColor('#0f172a').fontSize(12).font('Helvetica-Bold').text('1. STUDENT & ACADEMIC PROJECT OVERVIEW', 45, doc.y);
@@ -183,7 +189,7 @@ export class PdfService {
                 else if (d.status === 'IN_PROGRESS')
                     statusColor = '#b45309';
                 doc.fillColor(statusColor).font('Helvetica-Bold').text(d.status.replace(/_/g, ' '), 330, curY + 4);
-                doc.font('Helvetica').fillColor('#475569').text(d.approvedDate ? format(new Date(d.approvedDate), 'dd/MM/yyyy') : (d.submittedDate ? format(new Date(d.submittedDate), 'dd/MM/yyyy') : 'Pending'), 430, curY + 4);
+                doc.font('Helvetica').fillColor('#475569').text(d.approvedDate ? (0, date_fns_1.format)(new Date(d.approvedDate), 'dd/MM/yyyy') : (d.submittedDate ? (0, date_fns_1.format)(new Date(d.submittedDate), 'dd/MM/yyyy') : 'Pending'), 430, curY + 4);
                 curY += 16;
             }
             doc.y = curY + 10;
@@ -199,7 +205,7 @@ export class PdfService {
                 const weekBoxY = doc.y;
                 doc.roundedRect(45, weekBoxY, doc.page.width - 90, 90, 4).strokeColor('#cbd5e1').fillColor('#f8fafc').fillAndStroke();
                 doc.fillColor('#0369a1').fontSize(8.5).font('Helvetica-Bold');
-                doc.text(`Week ${latestWeek.weekNumber} (${format(new Date(latestWeek.weekStartDate), 'dd MMM')} – ${format(new Date(latestWeek.weekEndDate), 'dd MMM yyyy')}) — Status: ${latestWeek.status}`, 55, weekBoxY + 8);
+                doc.text(`Week ${latestWeek.weekNumber} (${(0, date_fns_1.format)(new Date(latestWeek.weekStartDate), 'dd MMM')} – ${(0, date_fns_1.format)(new Date(latestWeek.weekEndDate), 'dd MMM yyyy')}) — Status: ${latestWeek.status}`, 55, weekBoxY + 8);
                 doc.fillColor('#334155').fontSize(8).font('Helvetica-Bold').text('Completed Work:', 55, weekBoxY + 22);
                 doc.fillColor('#0f172a').font('Helvetica').text(latestWeek.completedActivities, 140, weekBoxY + 22, { width: 390, height: 20 });
                 doc.fillColor('#b91c1c').font('Helvetica-Bold').text('Blockers / Mistakes:', 55, weekBoxY + 44);
@@ -246,7 +252,7 @@ export class PdfService {
      * Generates an official payment receipt PDF
      */
     static async generatePaymentReceiptPdf(paymentId) {
-        const payment = await prisma.payment.findUnique({
+        const payment = await prisma_js_1.prisma.payment.findUnique({
             where: { id: paymentId },
             include: {
                 student: true,
@@ -259,7 +265,7 @@ export class PdfService {
         if (!payment) {
             throw new Error('Payment not found');
         }
-        const settings = await prisma.instituteSettings.findFirst() || {
+        const settings = await prisma_js_1.prisma.instituteSettings.findFirst() || {
             instituteName: 'Pinnacle Mindz',
             subtitle: 'Project Guidance & Progress Management',
             contactEmail: 'contact@pinnaclemindz.com',
@@ -309,7 +315,7 @@ export class PdfService {
             const metaY = doc.y;
             doc.roundedRect(50, metaY, doc.page.width - 100, 65, 4).strokeColor('#e2e8f0').fillColor('#f8fafc').fillAndStroke();
             doc.fillColor('#475569').fontSize(9).font('Helvetica-Bold').text('Receipt Date:', 65, metaY + 12);
-            doc.fillColor('#0f172a').font('Helvetica').text(format(new Date(payment.paymentDate), 'dd MMMM yyyy'), 145, metaY + 12);
+            doc.fillColor('#0f172a').font('Helvetica').text((0, date_fns_1.format)(new Date(payment.paymentDate), 'dd MMMM yyyy'), 145, metaY + 12);
             doc.fillColor('#475569').font('Helvetica-Bold').text('Payment Method:', 330, metaY + 12);
             doc.fillColor('#0f172a').font('Helvetica').text(payment.paymentMethod.replace(/_/g, ' '), 430, metaY + 12);
             doc.fillColor('#475569').font('Helvetica-Bold').text('Received From:', 65, metaY + 32);
@@ -353,3 +359,4 @@ export class PdfService {
         });
     }
 }
+exports.PdfService = PdfService;

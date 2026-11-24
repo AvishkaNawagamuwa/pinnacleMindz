@@ -1,10 +1,13 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, requireRoles } from '../middleware/auth.js';
-import { NotificationType, Role } from '@prisma/client';
-export const evaluationsRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.evaluationsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+exports.evaluationsRouter = (0, express_1.Router)();
 // GET /api/evaluations - List evaluations
-evaluationsRouter.get('/', authenticate, async (req, res) => {
+exports.evaluationsRouter.get('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { studentId, stage, status } = req.query;
         const where = {};
@@ -14,15 +17,15 @@ evaluationsRouter.get('/', authenticate, async (req, res) => {
             where.stage = stage;
         if (status)
             where.status = status;
-        if (req.user.role === Role.STUDENT) {
-            const student = await prisma.student.findFirst({ where: { userId: req.user.id } });
+        if (req.user.role === client_1.Role.STUDENT) {
+            const student = await prisma_js_1.prisma.student.findFirst({ where: { userId: req.user.id } });
             if (!student) {
                 res.json({ evaluations: [] });
                 return;
             }
             where.studentId = student.id;
         }
-        const evaluations = await prisma.evaluation.findMany({
+        const evaluations = await prisma_js_1.prisma.evaluation.findMany({
             where,
             orderBy: { scheduledDate: 'asc' },
             include: {
@@ -46,14 +49,14 @@ evaluationsRouter.get('/', authenticate, async (req, res) => {
     }
 });
 // POST /api/evaluations - Create evaluation record (Supervisor or Admin)
-evaluationsRouter.post('/', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR), async (req, res) => {
+exports.evaluationsRouter.post('/', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR), async (req, res) => {
     try {
         const { studentId, stage, evaluationTitle, scheduledDate, status = 'SCHEDULED', marksRating, feedback, areasForImprovement, nextSteps, formAttachmentUrl, rubricScores, } = req.body;
         if (!studentId || !stage || !evaluationTitle || !scheduledDate) {
             res.status(400).json({ message: 'studentId, stage, evaluationTitle, and scheduledDate are required' });
             return;
         }
-        const evaluation = await prisma.evaluation.create({
+        const evaluation = await prisma_js_1.prisma.evaluation.create({
             data: {
                 studentId,
                 evaluatorId: req.user.id,
@@ -74,12 +77,12 @@ evaluationsRouter.post('/', authenticate, requireRoles(Role.ADMIN, Role.SUPERVIS
             },
         });
         if (evaluation.student.assignedMentorId) {
-            await prisma.notification.create({
+            await prisma_js_1.prisma.notification.create({
                 data: {
                     userId: evaluation.student.assignedMentorId,
                     title: `Evaluation Update: ${evaluationTitle}`,
                     message: `Evaluation ${evaluationTitle} scheduled/updated for ${evaluation.student.fullName}.`,
-                    type: NotificationType.EVALUATION,
+                    type: client_1.NotificationType.EVALUATION,
                     linkUrl: `/students/${studentId}`,
                 },
             });
@@ -91,11 +94,11 @@ evaluationsRouter.post('/', authenticate, requireRoles(Role.ADMIN, Role.SUPERVIS
     }
 });
 // PUT /api/evaluations/:id - Update evaluation
-evaluationsRouter.put('/:id', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR), async (req, res) => {
+exports.evaluationsRouter.put('/:id', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR), async (req, res) => {
     try {
         const evaluationId = req.params.id;
         const { status, marksRating, feedback, areasForImprovement, nextSteps, rubricScores, scheduledDate } = req.body;
-        const updated = await prisma.evaluation.update({
+        const updated = await prisma_js_1.prisma.evaluation.update({
             where: { id: evaluationId },
             data: {
                 status: status ? status : undefined,

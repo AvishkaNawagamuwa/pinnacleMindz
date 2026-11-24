@@ -1,10 +1,13 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, checkStudentAccess, requireRoles } from '../middleware/auth.js';
-import { TaskStatus, Role, NotificationType } from '@prisma/client';
-export const tasksRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.tasksRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+exports.tasksRouter = (0, express_1.Router)();
 // GET /api/tasks - List tasks with view filters (Kanban, Table, Calendar)
-tasksRouter.get('/', authenticate, async (req, res) => {
+exports.tasksRouter.get('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { studentId, projectId, status, priority, mentorId, search } = req.query;
         const where = {};
@@ -25,21 +28,21 @@ tasksRouter.get('/', authenticate, async (req, res) => {
                 { moduleName: { contains: String(search), mode: 'insensitive' } },
             ];
         }
-        if (req.user.role === Role.MENTOR && !studentId && !projectId) {
+        if (req.user.role === client_1.Role.MENTOR && !studentId && !projectId) {
             where.OR = [
                 { assignedMentorId: req.user.id },
                 { project: { student: { supportingMentors: { some: { mentorId: req.user.id } } } } },
             ];
         }
-        if (req.user.role === Role.STUDENT) {
-            const student = await prisma.student.findFirst({ where: { userId: req.user.id } });
+        if (req.user.role === client_1.Role.STUDENT) {
+            const student = await prisma_js_1.prisma.student.findFirst({ where: { userId: req.user.id } });
             if (!student) {
                 res.json({ tasks: [] });
                 return;
             }
             where.project = { studentId: student.id };
         }
-        const tasks = await prisma.projectTask.findMany({
+        const tasks = await prisma_js_1.prisma.projectTask.findMany({
             where,
             orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
             include: {
@@ -66,7 +69,7 @@ tasksRouter.get('/', authenticate, async (req, res) => {
     }
 });
 // POST /api/tasks - Create new task
-tasksRouter.post('/', authenticate, async (req, res) => {
+exports.tasksRouter.post('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { projectId, studentId, milestoneId, moduleName, title, description, priority = 'MEDIUM', startDate, dueDate, responsiblePerson = 'Student', assignedMentorId, } = req.body;
         if (!title || (!projectId && !studentId)) {
@@ -75,7 +78,7 @@ tasksRouter.post('/', authenticate, async (req, res) => {
         }
         let targetProjectId = projectId;
         if (!targetProjectId && studentId) {
-            const student = await prisma.student.findUnique({
+            const student = await prisma_js_1.prisma.student.findUnique({
                 where: { id: studentId },
                 include: { project: true },
             });
@@ -85,7 +88,7 @@ tasksRouter.post('/', authenticate, async (req, res) => {
             }
             targetProjectId = student.project.id;
         }
-        const project = await prisma.project.findUnique({
+        const project = await prisma_js_1.prisma.project.findUnique({
             where: { id: targetProjectId },
             include: { student: true },
         });
@@ -93,13 +96,13 @@ tasksRouter.post('/', authenticate, async (req, res) => {
             res.status(404).json({ message: 'Project not found' });
             return;
         }
-        const access = await checkStudentAccess(req, project.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, project.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
-        const taskMentorId = assignedMentorId || (req.user.role === Role.MENTOR ? req.user.id : project.student.assignedMentorId);
-        const task = await prisma.projectTask.create({
+        const taskMentorId = assignedMentorId || (req.user.role === client_1.Role.MENTOR ? req.user.id : project.student.assignedMentorId);
+        const task = await prisma_js_1.prisma.projectTask.create({
             data: {
                 projectId: targetProjectId,
                 milestoneId: milestoneId || null,
@@ -107,7 +110,7 @@ tasksRouter.post('/', authenticate, async (req, res) => {
                 title: title.trim(),
                 description,
                 priority: priority,
-                status: TaskStatus.NOT_STARTED,
+                status: client_1.TaskStatus.NOT_STARTED,
                 startDate: startDate ? new Date(startDate) : null,
                 dueDate: dueDate ? new Date(dueDate) : null,
                 responsiblePerson,
@@ -120,12 +123,12 @@ tasksRouter.post('/', authenticate, async (req, res) => {
         });
         // Notify student
         if (task.project?.student?.userId) {
-            await prisma.notification.create({
+            await prisma_js_1.prisma.notification.create({
                 data: {
                     userId: task.project.student.userId,
                     title: `New Task Assigned: ${title}`,
                     message: `A new task "${title}" has been assigned to your project.`,
-                    type: NotificationType.SYSTEM,
+                    type: client_1.NotificationType.SYSTEM,
                     linkUrl: `/tasks`,
                 },
             });
@@ -138,11 +141,11 @@ tasksRouter.post('/', authenticate, async (req, res) => {
     }
 });
 // PUT /api/tasks/:id/student-progress - Student updates progress, percentage, & GitHub evidence
-tasksRouter.put('/:id/student-progress', authenticate, async (req, res) => {
+exports.tasksRouter.put('/:id/student-progress', auth_js_1.authenticate, async (req, res) => {
     try {
         const taskId = req.params.id;
         const { completionPercentage, githubRepoUrl, githubCommitOrPrUrl, studentProgressNote, status } = req.body;
-        const task = await prisma.projectTask.findUnique({
+        const task = await prisma_js_1.prisma.projectTask.findUnique({
             where: { id: taskId },
             include: {
                 project: {
@@ -156,7 +159,7 @@ tasksRouter.put('/:id/student-progress', authenticate, async (req, res) => {
             res.status(404).json({ message: 'Task not found' });
             return;
         }
-        const access = await checkStudentAccess(req, task.project.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, task.project.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
@@ -165,11 +168,11 @@ tasksRouter.put('/:id/student-progress', authenticate, async (req, res) => {
         const nextStatus = status
             ? status
             : parsedPercent === 100
-                ? TaskStatus.SUBMITTED_FOR_REVIEW
+                ? client_1.TaskStatus.SUBMITTED_FOR_REVIEW
                 : parsedPercent > 0
-                    ? TaskStatus.IN_PROGRESS
+                    ? client_1.TaskStatus.IN_PROGRESS
                     : task.status;
-        const updated = await prisma.projectTask.update({
+        const updated = await prisma_js_1.prisma.projectTask.update({
             where: { id: taskId },
             data: {
                 completionPercentage: parsedPercent,
@@ -182,12 +185,12 @@ tasksRouter.put('/:id/student-progress', authenticate, async (req, res) => {
         // Notify mentor
         const mentorId = task.assignedMentorId || task.project.student.assignedMentorId;
         if (mentorId) {
-            await prisma.notification.create({
+            await prisma_js_1.prisma.notification.create({
                 data: {
                     userId: mentorId,
                     title: `Task Progress Updated: ${task.title}`,
                     message: `${task.project.student.fullName} updated progress on "${task.title}" to ${parsedPercent}%. Status: ${nextStatus}.`,
-                    type: NotificationType.SYSTEM,
+                    type: client_1.NotificationType.SYSTEM,
                     linkUrl: `/tasks`,
                 },
             });
@@ -200,20 +203,20 @@ tasksRouter.put('/:id/student-progress', authenticate, async (req, res) => {
     }
 });
 // POST /api/tasks/:id/verify - Mentor / Supervisor verifies evidence and marks complete or correction
-tasksRouter.post('/:id/verify', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR, Role.MENTOR), async (req, res) => {
+exports.tasksRouter.post('/:id/verify', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR, client_1.Role.MENTOR), async (req, res) => {
     try {
         const taskId = req.params.id;
         const { status, mentorFeedback } = req.body;
         const allowedStatuses = [
-            TaskStatus.COMPLETED,
-            TaskStatus.REVISION_REQUIRED,
-            TaskStatus.IN_PROGRESS,
+            client_1.TaskStatus.COMPLETED,
+            client_1.TaskStatus.REVISION_REQUIRED,
+            client_1.TaskStatus.IN_PROGRESS,
         ];
         if (!status || !allowedStatuses.includes(status)) {
             res.status(400).json({ message: `Status must be one of: ${allowedStatuses.join(', ')}` });
             return;
         }
-        const task = await prisma.projectTask.findUnique({
+        const task = await prisma_js_1.prisma.projectTask.findUnique({
             where: { id: taskId },
             include: {
                 project: {
@@ -228,32 +231,32 @@ tasksRouter.post('/:id/verify', authenticate, requireRoles(Role.ADMIN, Role.SUPE
             res.status(404).json({ message: 'Task not found' });
             return;
         }
-        const isCompleted = status === TaskStatus.COMPLETED;
-        const updated = await prisma.projectTask.update({
+        const isCompleted = status === client_1.TaskStatus.COMPLETED;
+        const updated = await prisma_js_1.prisma.projectTask.update({
             where: { id: taskId },
             data: {
                 status: status,
                 mentorFeedback: mentorFeedback || null,
-                completionPercentage: isCompleted ? 100 : status === TaskStatus.REVISION_REQUIRED ? Math.min(task.completionPercentage, 80) : task.completionPercentage,
+                completionPercentage: isCompleted ? 100 : status === client_1.TaskStatus.REVISION_REQUIRED ? Math.min(task.completionPercentage, 80) : task.completionPercentage,
                 completionDate: isCompleted ? new Date() : null,
             },
         });
         // Recalculate project overall progress
         const allTasks = task.project.tasks;
-        const completedTasksCount = allTasks.filter((t) => t.id === taskId ? isCompleted : t.status === TaskStatus.COMPLETED).length;
+        const completedTasksCount = allTasks.filter((t) => t.id === taskId ? isCompleted : t.status === client_1.TaskStatus.COMPLETED).length;
         const overallProgress = allTasks.length > 0 ? Math.round((completedTasksCount / allTasks.length) * 100) : 0;
-        await prisma.project.update({
+        await prisma_js_1.prisma.project.update({
             where: { id: task.projectId },
             data: { completionPercentage: overallProgress },
         });
         // Notify student
         if (task.project.student.userId) {
-            await prisma.notification.create({
+            await prisma_js_1.prisma.notification.create({
                 data: {
                     userId: task.project.student.userId,
                     title: `Task Review: ${task.title}`,
                     message: `Your mentor marked task "${task.title}" as ${status}. Feedback: "${mentorFeedback || 'Reviewed'}"`,
-                    type: isCompleted ? NotificationType.SUPERVISOR_FEEDBACK : NotificationType.CORRECTION,
+                    type: isCompleted ? client_1.NotificationType.SUPERVISOR_FEEDBACK : client_1.NotificationType.CORRECTION,
                     linkUrl: `/tasks`,
                 },
             });
@@ -266,10 +269,10 @@ tasksRouter.post('/:id/verify', authenticate, requireRoles(Role.ADMIN, Role.SUPE
     }
 });
 // PUT /api/tasks/:id - General task update
-tasksRouter.put('/:id', authenticate, async (req, res) => {
+exports.tasksRouter.put('/:id', auth_js_1.authenticate, async (req, res) => {
     try {
         const taskId = req.params.id;
-        const task = await prisma.projectTask.findUnique({
+        const task = await prisma_js_1.prisma.projectTask.findUnique({
             where: { id: taskId },
             include: { project: true },
         });
@@ -277,13 +280,13 @@ tasksRouter.put('/:id', authenticate, async (req, res) => {
             res.status(404).json({ message: 'Task not found' });
             return;
         }
-        const access = await checkStudentAccess(req, task.project.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, task.project.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
         const { status, title, description, priority, dueDate, feedback, completionPercentage } = req.body;
-        const updated = await prisma.projectTask.update({
+        const updated = await prisma_js_1.prisma.projectTask.update({
             where: { id: taskId },
             data: {
                 status: status ? status : undefined,
@@ -293,7 +296,7 @@ tasksRouter.put('/:id', authenticate, async (req, res) => {
                 dueDate: dueDate ? new Date(dueDate) : undefined,
                 feedback: feedback !== undefined ? feedback : undefined,
                 completionPercentage: completionPercentage !== undefined ? Number(completionPercentage) : undefined,
-                completionDate: status === TaskStatus.COMPLETED ? new Date() : status ? null : undefined,
+                completionDate: status === client_1.TaskStatus.COMPLETED ? new Date() : status ? null : undefined,
             },
         });
         res.json({ message: 'Task updated', task: updated });
@@ -303,7 +306,7 @@ tasksRouter.put('/:id', authenticate, async (req, res) => {
     }
 });
 // POST /api/tasks/:id/comments - Add task comment
-tasksRouter.post('/:id/comments', authenticate, async (req, res) => {
+exports.tasksRouter.post('/:id/comments', auth_js_1.authenticate, async (req, res) => {
     try {
         const taskId = req.params.id;
         const { content, attachmentUrl } = req.body;
@@ -311,7 +314,7 @@ tasksRouter.post('/:id/comments', authenticate, async (req, res) => {
             res.status(400).json({ message: 'Comment content is required' });
             return;
         }
-        const comment = await prisma.taskComment.create({
+        const comment = await prisma_js_1.prisma.taskComment.create({
             data: {
                 taskId,
                 authorId: req.user.id,
@@ -329,10 +332,10 @@ tasksRouter.post('/:id/comments', authenticate, async (req, res) => {
     }
 });
 // DELETE /api/tasks/:id
-tasksRouter.delete('/:id', authenticate, async (req, res) => {
+exports.tasksRouter.delete('/:id', auth_js_1.authenticate, async (req, res) => {
     try {
         const taskId = req.params.id;
-        const task = await prisma.projectTask.findUnique({
+        const task = await prisma_js_1.prisma.projectTask.findUnique({
             where: { id: taskId },
             include: { project: true },
         });
@@ -340,12 +343,12 @@ tasksRouter.delete('/:id', authenticate, async (req, res) => {
             res.status(404).json({ message: 'Task not found' });
             return;
         }
-        const access = await checkStudentAccess(req, task.project.studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, task.project.studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
-        await prisma.projectTask.delete({ where: { id: taskId } });
+        await prisma_js_1.prisma.projectTask.delete({ where: { id: taskId } });
         res.json({ message: 'Task deleted' });
     }
     catch (error) {

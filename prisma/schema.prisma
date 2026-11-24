@@ -1,0 +1,752 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  SUPERVISOR
+  MENTOR
+  STUDENT
+}
+
+enum StudentStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  DROPPED
+  DEACTIVATED
+}
+
+enum DevelopmentStage {
+  PROPOSAL
+  SRS_DESIGN
+  IMPLEMENTATION
+  TESTING
+  DOCUMENTATION
+  VIVA_PREPARATION
+  COMPLETED
+}
+
+enum DocumentStatus {
+  PENDING
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  READY_FOR_REVIEW
+  REVISION_REQUIRED
+  CORRECTION_REQUIRED
+  RESUBMITTED
+  APPROVED
+  REJECTED
+  NOT_APPLICABLE
+}
+
+enum WeeklyStatus {
+  NOT_STARTED
+  ON_TRACK
+  IN_PROGRESS
+  NEEDS_ATTENTION
+  BLOCKED
+  COMPLETED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  TO_DO
+  IN_PROGRESS
+  SUBMITTED_FOR_REVIEW
+  UNDER_REVIEW
+  REVISION_REQUIRED
+  COMPLETED
+}
+
+enum CorrectionStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  VERIFIED
+}
+
+enum MeetingType {
+  PROJECT_DISCUSSION
+  WEEKLY_REVIEW
+  CODE_REVIEW
+  DEVELOPMENT_DEMO
+  DOCUMENTATION_REVIEW
+  VIVA_PREPARATION
+  SUPERVISOR_MEETING
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum EvaluationStage {
+  PROJECT_IDEA_APPROVAL
+  SCOPE_APPROVAL
+  INITIAL_EVALUATION
+  PROGRESS_EVALUATION
+  INTERIM_EVALUATION
+  FINAL_EVALUATION
+  VIVA_PREPARATION
+  FINAL_SUBMISSION
+}
+
+enum EvaluationStatus {
+  SCHEDULED
+  COMPLETED
+  POSTPONED
+}
+
+enum PaymentPlan {
+  FULL
+  INSTALLMENTS
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  OTHER
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum NotificationType {
+  DEADLINE
+  OVERDUE_TASK
+  SUPERVISOR_FEEDBACK
+  MENTOR_ASSIGNMENT
+  MISSING_UPDATE
+  EVALUATION
+  CORRECTION
+  PAYMENT
+  DOCUMENT_SUBMISSION
+  SYSTEM
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String?  @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations as staff
+  supervisedStudents         Student[]                 @relation("SupervisorToStudent")
+  mentoredStudents           Student[]                 @relation("MentorToStudent")
+  supportingMentoredStudents StudentMentorAssignment[] @relation("SupportingMentors")
+
+  dailyProgresses          DailyProgress[]
+  weeklyProgresses         WeeklyProgress[]
+  supervisorFeedbacks      SupervisorFeedback[]
+  assignedCorrections      Correction[]         @relation("MentorCorrections")
+  createdCorrections       Correction[]         @relation("SupervisorCorrections")
+  mentorMeetings           Meeting[]            @relation("MentorMeetings")
+  supervisorMeetings       Meeting[]            @relation("SupervisorMeetings")
+  evaluations              Evaluation[]
+  recordedPayments         Payment[]            @relation("PaymentsRecorded")
+  notifications            Notification[]
+  activityLogs             ActivityLog[]
+  documentVersions         DocumentVersion[]
+  reviewedStudentDocs      StudentDocument[]    @relation("ReviewedStudentDocs")
+  reviewedWeeklyProgresses WeeklyProgress[]     @relation("ReviewedWeeklyProgresses")
+  taskComments             TaskComment[]
+  tasksAssigned            ProjectTask[]        @relation("AssignedMentorTasks")
+
+  studentProfile Student? @relation("StudentUser")
+
+  @@index([role])
+  @@index([email])
+  @@index([username])
+}
+
+model Student {
+  id                 String        @id @default(uuid())
+  studentId          String        @unique // e.g. PM-2026-001
+  registrationNumber String        @unique // University registration e.g. 2300839 / BIT-2026-045
+  fullName           String
+  university         String        @default("University of Colombo School of Computing (UCSC)")
+  degreeProgramme    String        @default("Bachelor of Information Technology (BIT)")
+  batch              String        @default("2026")
+  academicYear       String        @default("2025/2026")
+  email              String        @unique
+  contactNumber      String
+  whatsappNumber     String?
+  registrationDate   DateTime      @default(now())
+  currentAddress     String?
+  status             StudentStatus @default(ACTIVE)
+  isActive           Boolean       @default(true)
+  remarks            String?
+
+  userId String? @unique
+  user   User?   @relation("StudentUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  assignedSupervisorId String?
+  assignedSupervisor   User?   @relation("SupervisorToStudent", fields: [assignedSupervisorId], references: [id])
+
+  assignedMentorId String?
+  assignedMentor   User?   @relation("MentorToStudent", fields: [assignedMentorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  supportingMentors       StudentMentorAssignment[]
+  project                 Project?
+  mentorAssignmentHistory MentorAssignmentHistory[]
+  documents               StudentDocument[]
+  dailyProgresses         DailyProgress[]
+  weeklyProgresses        WeeklyProgress[]
+  corrections             Correction[]
+  meetings                Meeting[]
+  evaluations             Evaluation[]
+  feeAgreement            StudentFeeAgreement?
+  payments                Payment[]
+  feedbacks               SupervisorFeedback[]
+
+  @@index([assignedMentorId])
+  @@index([assignedSupervisorId])
+  @@index([status])
+  @@index([batch])
+  @@index([isActive])
+}
+
+model StudentMentorAssignment {
+  id         String   @id @default(uuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId   String
+  mentor     User     @relation("SupportingMentors", fields: [mentorId], references: [id], onDelete: Cascade)
+  isPrimary  Boolean  @default(false)
+  assignedAt DateTime @default(now())
+
+  @@unique([studentId, mentorId])
+  @@index([studentId])
+  @@index([mentorId])
+}
+
+model Project {
+  id                     String           @id @default(uuid())
+  projectId              String           @unique // e.g. PRJ-2026-001
+  studentId              String           @unique
+  student                Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title                  String
+  idea                   String?          @db.Text
+  problemStatement       String?          @db.Text
+  proposedSolution       String?          @db.Text
+  mainObjectives         String?          @db.Text
+  mainModules            String?          @db.Text
+  techStack              String?
+  category               String?          @default("Web & Enterprise Application")
+  startDate              DateTime         @default(now())
+  expectedCompletionDate DateTime?
+  actualCompletionDate   DateTime?
+  currentStage           DevelopmentStage @default(PROPOSAL)
+  completionPercentage   Float            @default(0.0)
+  githubRepoUrl          String?
+  demoUrl                String?
+  technicalRemarks       String?          @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  history    ProjectHistory[]
+  milestones ProjectMilestone[]
+  tasks      ProjectTask[]
+
+  @@index([currentStage])
+  @@index([completionPercentage])
+}
+
+model ProjectHistory {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fieldChanged String
+  oldValue     String?  @db.Text
+  newValue     String?  @db.Text
+  reason       String?
+  changedById  String
+  createdAt    DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model MentorAssignmentHistory {
+  id               String   @id @default(uuid())
+  studentId        String
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  previousMentorId String?
+  newMentorId      String
+  changedById      String
+  reason           String?  @db.Text
+  assignedAt       DateTime @default(now())
+
+  @@index([studentId])
+}
+
+model DocumentType {
+  id                     String           @id @default(uuid())
+  code                   String           @unique
+  name                   String
+  description            String?
+  category               String           @default("General")
+  academicStage          DevelopmentStage @default(PROPOSAL)
+  isRequired             Boolean          @default(true)
+  submissionInstructions String?          @db.Text
+  defaultDeadlineDays    Int              @default(30)
+  allowedUrlTypes        String?          @default("GOOGLE_DRIVE") // GOOGLE_DRIVE, GITHUB, ANY_URL
+  isActive               Boolean          @default(true)
+  targetBatch            String?
+  targetStage            DevelopmentStage?
+  batch                  String?
+  programme              String?
+  orderIndex             Int              @default(0)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt @default(now())
+
+  studentDocuments StudentDocument[]
+
+  @@index([category])
+  @@index([academicStage])
+  @@index([isActive])
+}
+
+model StudentDocument {
+  id                 String         @id @default(uuid())
+  studentId          String
+  student            Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  documentTypeId     String
+  documentTypeConfig DocumentType   @relation(fields: [documentTypeId], references: [id])
+  documentName       String
+  documentType       String // Fallback or descriptive code
+  assignedMentorId   String?
+  submissionDeadline DateTime?
+  status             DocumentStatus @default(PENDING)
+  currentVersion     Int            @default(0)
+  submittedDate      DateTime?
+  approvedDate       DateTime?
+
+  // Submission details (Google Drive / External Link)
+  submissionTitle    String?
+  submissionUrl      String?        // Google Drive shareable link or external URL
+  submissionNote     String?        @db.Text
+  submittedAt        DateTime?
+  reviewedAt         DateTime?
+  reviewerFeedback   String?        @db.Text
+  reviewedById       String?
+  reviewedBy         User?          @relation("ReviewedStudentDocs", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions    DocumentVersion[]
+  corrections Correction[]
+  feedbacks   SupervisorFeedback[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([submissionDeadline])
+}
+
+model DocumentVersion {
+  id                  String          @id @default(uuid())
+  studentDocumentId   String
+  studentDocument     StudentDocument @relation(fields: [studentDocumentId], references: [id], onDelete: Cascade)
+  versionNumber       Int
+  fileUrl             String?
+  fileName            String?
+  fileSize            Int?            @default(0)
+  fileType            String?         @default("LINK")
+  externalUrl         String?         // Google Drive shareable link or external URL
+  submissionNote      String?         @db.Text
+  uploadedById        String?
+  uploadedBy          User?           @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  changeSummary       String?         @db.Text
+  submittedDate       DateTime        @default(now())
+  reviewedById        String?
+  reviewDate          DateTime?
+  reviewerComments    String?         @db.Text
+  requiredCorrections String?         @db.Text
+  status              DocumentStatus  @default(SUBMITTED)
+  createdAt           DateTime        @default(now())
+
+  @@index([studentDocumentId])
+}
+
+model ProjectMilestone {
+  id             String           @id @default(uuid())
+  projectId      String
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?          @db.Text
+  stage          DevelopmentStage
+  weight         Float            @default(10.0) // Percentage weight in total project progress
+  dueDate        DateTime?
+  completedDate  DateTime?
+  status         TaskStatus       @default(TO_DO)
+  orderIndex     Int              @default(0)
+  createdAt      DateTime         @default(now())
+
+  tasks ProjectTask[]
+
+  @@index([projectId])
+}
+
+model ProjectTask {
+  id                String            @id @default(uuid())
+  projectId         String
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneId       String?
+  milestone         ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  moduleName        String?
+  title             String
+  description       String?           @db.Text
+  assignedMentorId  String?
+  assignedMentor    User?             @relation("AssignedMentorTasks", fields: [assignedMentorId], references: [id])
+  responsiblePerson String?           @default("Student")
+  priority          Priority          @default(MEDIUM)
+  startDate         DateTime?
+  dueDate           DateTime?
+  completionDate    DateTime?
+  status            TaskStatus        @default(NOT_STARTED)
+  feedback          String?           @db.Text
+
+  // Task Progress & GitHub Tracking
+  completionPercentage Float          @default(0.0)
+  githubRepoUrl        String?
+  githubCommitOrPrUrl  String?
+  studentProgressNote  String?        @db.Text
+  mentorFeedback       String?        @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments    TaskComment[]
+  corrections Correction[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model TaskComment {
+  id            String      @id @default(uuid())
+  taskId        String
+  task          ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id])
+  content       String      @db.Text
+  attachmentUrl String?
+  createdAt     DateTime    @default(now())
+
+  @@index([taskId])
+}
+
+model DailyProgress {
+  id                  String   @id @default(uuid())
+  studentId           String
+  student             Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId            String
+  mentor              User     @relation(fields: [mentorId], references: [id])
+  date                DateTime @default(now())
+  moduleTask          String
+  workPlanned         String   @db.Text
+  workCompleted       String   @db.Text
+  currentStatus       String
+  problemsEncountered String?  @db.Text
+  mistakesIdentified  String?  @db.Text
+  correctionsRequired String?  @db.Text
+  nextAction          String?  @db.Text
+  attachmentUrl       String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([date])
+}
+
+model WeeklyProgress {
+  id                  String       @id @default(uuid())
+  studentId           String
+  student             Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId            String
+  mentor              User         @relation(fields: [mentorId], references: [id])
+  weekNumber          Int
+  year                Int
+  weekStartDate       DateTime
+  weekEndDate         DateTime
+  plannedActivities   String       @db.Text
+  completedActivities String       @db.Text
+  incompleteActivities String?     @db.Text
+  problemsBlockers    String?      @db.Text
+  supervisorFeedback  String?      @db.Text
+  nextWeekPlan        String?      @db.Text
+  mentorNotes         String?      @db.Text
+  status              WeeklyStatus @default(IN_PROGRESS)
+
+  // Student weekly report & GitHub evidence
+  currentActivities   String?      @db.Text
+  challenges          String?      @db.Text
+  githubEvidenceUrl   String?
+  reviewStatus        String       @default("PENDING") // PENDING, APPROVED, REVISION_REQUIRED
+  reviewedById        String?
+  reviewedBy          User?        @relation("ReviewedWeeklyProgresses", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  supervisorFeedbacks SupervisorFeedback[]
+
+  @@unique([studentId, year, weekNumber])
+  @@index([studentId])
+  @@index([status])
+  @@index([weekStartDate])
+}
+
+model SupervisorFeedback {
+  id                 String          @id @default(uuid())
+  studentId          String
+  student            Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  supervisorId       String
+  supervisor         User            @relation(fields: [supervisorId], references: [id])
+  weeklyProgressId   String?
+  weeklyProgress     WeeklyProgress? @relation(fields: [weeklyProgressId], references: [id], onDelete: SetNull)
+  studentDocumentId  String?
+  studentDocument    StudentDocument? @relation(fields: [studentDocumentId], references: [id], onDelete: SetNull)
+  feedbackType       String          @default("Progress Review")
+  comments           String          @db.Text
+  mistakesIdentified String?         @db.Text
+  priority           Priority        @default(MEDIUM)
+  createdAt          DateTime        @default(now())
+
+  @@index([studentId])
+  @@index([supervisorId])
+}
+
+model Correction {
+  id                    String           @id @default(uuid())
+  studentId             String
+  student               Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  taskId                String?
+  task                  ProjectTask?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  studentDocumentId     String?
+  studentDocument       StudentDocument? @relation(fields: [studentDocumentId], references: [id], onDelete: SetNull)
+  supervisorId          String
+  supervisor            User             @relation("SupervisorCorrections", fields: [supervisorId], references: [id])
+  assignedMentorId      String
+  assignedMentor        User             @relation("MentorCorrections", fields: [assignedMentorId], references: [id])
+  issueDescription      String           @db.Text
+  correctionInstruction String           @db.Text
+  dateIdentified        DateTime         @default(now())
+  deadline              DateTime?
+  status                CorrectionStatus @default(OPEN)
+  resolutionNote        String?          @db.Text
+  resolvedAt            DateTime?
+  verifiedAt            DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([studentId])
+  @@index([assignedMentorId])
+  @@index([status])
+}
+
+model Meeting {
+  id                  String        @id @default(uuid())
+  studentId           String
+  student             Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorId            String
+  mentor              User          @relation("MentorMeetings", fields: [mentorId], references: [id])
+  supervisorId        String?
+  supervisor          User?         @relation("SupervisorMeetings", fields: [supervisorId], references: [id])
+  meetingDate         DateTime
+  meetingType         MeetingType   @default(PROJECT_DISCUSSION)
+  discussionSummary   String        @db.Text
+  demonstratedFeatures String?      @db.Text
+  issuesIdentified    String?       @db.Text
+  decisionsMade       String?       @db.Text
+  nextMeetingDate     DateTime?
+  followUpTasks       String?       @db.Text
+  status              MeetingStatus @default(SCHEDULED)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([studentId])
+  @@index([mentorId])
+  @@index([meetingDate])
+}
+
+model Evaluation {
+  id                  String           @id @default(uuid())
+  studentId           String
+  student             Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  evaluatorId         String
+  evaluator           User             @relation(fields: [evaluatorId], references: [id])
+  stage               EvaluationStage
+  evaluationTitle     String
+  scheduledDate       DateTime
+  completionDate      DateTime?
+  status              EvaluationStatus @default(SCHEDULED)
+  marksRating         Float?
+  feedback            String?          @db.Text
+  areasForImprovement String?          @db.Text
+  nextSteps           String?          @db.Text
+  formAttachmentUrl   String?
+  rubricScores        Json?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([studentId])
+  @@index([stage])
+  @@index([status])
+}
+
+model StudentFeeAgreement {
+  id                   String      @id @default(uuid())
+  studentId            String      @unique
+  student              Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  totalAgreedFee       Float
+  discount             Float       @default(0.0)
+  finalPayableAmount   Float
+  paymentPlan          PaymentPlan @default(INSTALLMENTS)
+  initialPayment       Float       @default(0.0)
+  numberOfInstallments Int         @default(3)
+  remarks              String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  installments PaymentInstallment[]
+  payments     Payment[]
+}
+
+model PaymentInstallment {
+  id                String            @id @default(uuid())
+  feeAgreementId    String
+  feeAgreement      StudentFeeAgreement @relation(fields: [feeAgreementId], references: [id], onDelete: Cascade)
+  installmentNumber Int
+  amount            Float
+  dueDate           DateTime
+  status            InstallmentStatus @default(PENDING)
+  paidDate          DateTime?
+  createdAt         DateTime          @default(now())
+
+  @@index([feeAgreementId])
+  @@index([dueDate])
+}
+
+model Payment {
+  id                   String        @id @default(uuid())
+  paymentId            String        @unique // e.g. RCP-2026-001
+  feeAgreementId       String
+  feeAgreement         StudentFeeAgreement @relation(fields: [feeAgreementId], references: [id], onDelete: Cascade)
+  studentId            String
+  student              Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  paymentDate          DateTime      @default(now())
+  amount               Float
+  paymentMethod        PaymentMethod @default(BANK_TRANSFER)
+  referenceNumber      String?
+  receiptNumber        String        @unique
+  receiptAttachmentUrl String?
+  recordedById         String
+  recordedBy           User          @relation("PaymentsRecorded", fields: [recordedById], references: [id])
+  remarks              String?
+  isVoided             Boolean       @default(false)
+  voidReason           String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  auditLogs PaymentAuditLog[]
+
+  @@index([studentId])
+  @@index([paymentDate])
+  @@index([receiptNumber])
+}
+
+model PaymentAuditLog {
+  id            String   @id @default(uuid())
+  paymentId     String
+  payment       Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  actorId       String
+  action        String // CREATED, UPDATED, VOIDED
+  previousState Json?
+  newState      Json?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  @@index([paymentId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String           @db.Text
+  type      NotificationType @default(SYSTEM)
+  linkUrl   String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actorName  String
+  actorRole  String
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType])
+}
+
+model InstituteSettings {
+  id                             String   @id @default(uuid())
+  instituteName                  String   @default("Pinnacle Mindz")
+  subtitle                       String   @default("Project Guidance & Progress Management")
+  logoUrl                        String?  @default("/logo.svg")
+  contactEmail                   String   @default("info@pinnaclemindz.com")
+  contactPhone                   String   @default("+94 77 123 4567")
+  address                        String   @default("Colombo, Sri Lanka")
+  expectedReportingFrequencyDays Int      @default(7) // Days before update is considered missing
+  supervisorCanEditPayments      Boolean  @default(false)
+  mentorsCanViewPaymentIndicator Boolean  @default(true)
+  defaultBatches                 Json?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+}

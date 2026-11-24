@@ -1,11 +1,17 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, requireRoles, checkStudentAccess } from '../middleware/auth.js';
-import { Role, StudentStatus, DevelopmentStage, DocumentStatus, PaymentPlan, InstallmentStatus, NotificationType, } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-export const studentsRouter = Router();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.studentsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+exports.studentsRouter = (0, express_1.Router)();
 // GET /api/students - List students with search, filters, pagination
-studentsRouter.get('/', authenticate, async (req, res) => {
+exports.studentsRouter.get('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { search, mentorId, supervisorId, batch, status, stage, mode = 'all', // 'my' (mentor's assigned only), 'all' (directory or admin list)
         page = '1', limit = '50', } = req.query;
@@ -41,7 +47,7 @@ studentsRouter.get('/', authenticate, async (req, res) => {
             };
         }
         // Role-specific filtering
-        const isMentor = req.user.role === Role.MENTOR;
+        const isMentor = req.user.role === client_1.Role.MENTOR;
         if (isMentor && mode === 'my') {
             where.OR = [
                 { assignedMentorId: req.user.id },
@@ -49,8 +55,8 @@ studentsRouter.get('/', authenticate, async (req, res) => {
             ];
         }
         // Student role can only see themselves
-        if (req.user.role === Role.STUDENT) {
-            const selfStudent = await prisma.student.findFirst({
+        if (req.user.role === client_1.Role.STUDENT) {
+            const selfStudent = await prisma_js_1.prisma.student.findFirst({
                 where: { userId: req.user.id },
                 select: { id: true },
             });
@@ -61,8 +67,8 @@ studentsRouter.get('/', authenticate, async (req, res) => {
             where.id = selfStudent.id;
         }
         const [total, students] = await Promise.all([
-            prisma.student.count({ where }),
-            prisma.student.findMany({
+            prisma_js_1.prisma.student.count({ where }),
+            prisma_js_1.prisma.student.findMany({
                 where,
                 skip,
                 take: limitNum,
@@ -109,9 +115,9 @@ studentsRouter.get('/', authenticate, async (req, res) => {
             const isAssignedToReqMentor = isMentor &&
                 (s.assignedMentorId === req.user.id ||
                     s.supportingMentors.some((sm) => sm.mentorId === req.user.id));
-            const canSeeFull = req.user.role === Role.ADMIN ||
-                req.user.role === Role.SUPER_ADMIN ||
-                req.user.role === Role.SUPERVISOR ||
+            const canSeeFull = req.user.role === client_1.Role.ADMIN ||
+                req.user.role === client_1.Role.SUPER_ADMIN ||
+                req.user.role === client_1.Role.SUPERVISOR ||
                 isAssignedToReqMentor;
             let paymentSummary = null;
             if (canSeeFull && s.feeAgreement) {
@@ -167,7 +173,7 @@ studentsRouter.get('/', authenticate, async (req, res) => {
     }
 });
 // POST /api/students - Register new student (Admin / Super Admin only)
-studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.studentsRouter.post('/', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const { registrationNumber, fullName, email, username, contactNumber, whatsappNumber, university = 'University of Colombo School of Computing (UCSC)', degreeProgramme = 'Bachelor of Information Technology (BIT)', batch = '2026', academicYear = 'Level 3 / Year 3', currentAddress, assignedSupervisorId, assignedMentorId, supportingMentorIds = [], remarks, projectTitle, projectIdea, problemStatement, proposedSolution, mainObjectives, mainModules, techStack, category, totalAgreedFee = 65000, discount = 0, initialPayment = 0, numberOfInstallments = 3, paymentMethod = 'BANK_TRANSFER', referenceNumber, } = req.body;
         if (!registrationNumber || !fullName || !email || !contactNumber || !projectTitle) {
@@ -178,7 +184,7 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
         const trimmedEmail = email.toLowerCase().trim();
         const studentUsername = username ? username.trim() : trimmedReg;
         // Check unique constraints (registrationNumber, email, username)
-        const existing = await prisma.student.findFirst({
+        const existing = await prisma_js_1.prisma.student.findFirst({
             where: {
                 OR: [{ registrationNumber: trimmedReg }, { email: trimmedEmail }],
             },
@@ -187,7 +193,7 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
             res.status(400).json({ message: 'Student with this registration number or email already exists.' });
             return;
         }
-        const existingUser = await prisma.user.findFirst({
+        const existingUser = await prisma_js_1.prisma.user.findFirst({
             where: {
                 OR: [{ email: trimmedEmail }, { username: studentUsername }],
             },
@@ -197,24 +203,24 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
             return;
         }
         // Generate automatic Student ID
-        const count = await prisma.student.count();
+        const count = await prisma_js_1.prisma.student.count();
         const studentIdCode = `PM-${batch}-${String(count + 1).padStart(3, '0')}`;
         const projectIdCode = `PRJ-${batch}-${String(count + 1).padStart(3, '0')}`;
         // Create student user login credentials
-        const defaultStudentPassword = await bcrypt.hash('Student@123', 10);
-        const studentUser = await prisma.user.create({
+        const defaultStudentPassword = await bcryptjs_1.default.hash('Student@123', 10);
+        const studentUser = await prisma_js_1.prisma.user.create({
             data: {
                 email: trimmedEmail,
                 username: studentUsername,
                 passwordHash: defaultStudentPassword,
                 fullName: fullName.trim(),
-                role: Role.STUDENT,
+                role: client_1.Role.STUDENT,
                 phone: contactNumber,
                 isActive: true,
             },
         });
         // Transaction for atomic creation
-        const newStudent = await prisma.$transaction(async (tx) => {
+        const newStudent = await prisma_js_1.prisma.$transaction(async (tx) => {
             // 1. Create Student
             const student = await tx.student.create({
                 data: {
@@ -234,7 +240,7 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
                     remarks,
                     userId: studentUser.id,
                     isActive: true,
-                    status: StudentStatus.ACTIVE,
+                    status: client_1.StudentStatus.ACTIVE,
                 },
             });
             // 1b. Assign Supporting Mentors
@@ -264,19 +270,19 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
                     mainModules,
                     techStack,
                     category: category || 'Web & Enterprise Application',
-                    currentStage: DevelopmentStage.PROPOSAL,
+                    currentStage: client_1.DevelopmentStage.PROPOSAL,
                     completionPercentage: 0.0,
                 },
             });
             // 3. Create default milestones
             const defaultMilestones = [
-                { title: 'Project Proposal & Scope Freeze', stage: DevelopmentStage.PROPOSAL, weight: 10.0, orderIndex: 1 },
-                { title: 'Software Requirements Specification (SRS)', stage: DevelopmentStage.SRS_DESIGN, weight: 15.0, orderIndex: 2 },
-                { title: 'System Architecture & Database Design', stage: DevelopmentStage.SRS_DESIGN, weight: 15.0, orderIndex: 3 },
-                { title: 'Core Backend Development & APIs', stage: DevelopmentStage.IMPLEMENTATION, weight: 20.0, orderIndex: 4 },
-                { title: 'Frontend UI Implementation & Integration', stage: DevelopmentStage.IMPLEMENTATION, weight: 20.0, orderIndex: 5 },
-                { title: 'Testing, Security Audit & UAT', stage: DevelopmentStage.TESTING, weight: 10.0, orderIndex: 6 },
-                { title: 'Final Dissertation & Viva Preparation', stage: DevelopmentStage.DOCUMENTATION, weight: 10.0, orderIndex: 7 },
+                { title: 'Project Proposal & Scope Freeze', stage: client_1.DevelopmentStage.PROPOSAL, weight: 10.0, orderIndex: 1 },
+                { title: 'Software Requirements Specification (SRS)', stage: client_1.DevelopmentStage.SRS_DESIGN, weight: 15.0, orderIndex: 2 },
+                { title: 'System Architecture & Database Design', stage: client_1.DevelopmentStage.SRS_DESIGN, weight: 15.0, orderIndex: 3 },
+                { title: 'Core Backend Development & APIs', stage: client_1.DevelopmentStage.IMPLEMENTATION, weight: 20.0, orderIndex: 4 },
+                { title: 'Frontend UI Implementation & Integration', stage: client_1.DevelopmentStage.IMPLEMENTATION, weight: 20.0, orderIndex: 5 },
+                { title: 'Testing, Security Audit & UAT', stage: client_1.DevelopmentStage.TESTING, weight: 10.0, orderIndex: 6 },
+                { title: 'Final Dissertation & Viva Preparation', stage: client_1.DevelopmentStage.DOCUMENTATION, weight: 10.0, orderIndex: 7 },
             ];
             for (const m of defaultMilestones) {
                 await tx.projectMilestone.create({
@@ -302,7 +308,7 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
                         documentName: dt.name,
                         documentType: dt.code,
                         assignedMentorId: assignedMentorId || null,
-                        status: DocumentStatus.NOT_STARTED,
+                        status: client_1.DocumentStatus.NOT_STARTED,
                     },
                 });
             }
@@ -314,7 +320,7 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
                     totalAgreedFee: Number(totalAgreedFee),
                     discount: Number(discount),
                     finalPayableAmount: finalPayable,
-                    paymentPlan: numberOfInstallments > 1 ? PaymentPlan.INSTALLMENTS : PaymentPlan.FULL,
+                    paymentPlan: numberOfInstallments > 1 ? client_1.PaymentPlan.INSTALLMENTS : client_1.PaymentPlan.FULL,
                     initialPayment: Number(initialPayment),
                     numberOfInstallments: Number(numberOfInstallments),
                 },
@@ -330,7 +336,7 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
                         installmentNumber: i,
                         amount: i === numberOfInstallments ? finalPayable - installmentAmount * (numberOfInstallments - 1) : installmentAmount,
                         dueDate,
-                        status: i === 1 && initialPayment > 0 ? InstallmentStatus.PAID : InstallmentStatus.PENDING,
+                        status: i === 1 && initialPayment > 0 ? client_1.InstallmentStatus.PAID : client_1.InstallmentStatus.PENDING,
                         paidDate: i === 1 && initialPayment > 0 ? new Date() : null,
                     },
                 });
@@ -359,7 +365,7 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
                         userId: assignedMentorId,
                         title: `New Student Assigned: ${fullName}`,
                         message: `You have been assigned as primary mentor for ${fullName} (${projectTitle}).`,
-                        type: NotificationType.MENTOR_ASSIGNMENT,
+                        type: client_1.NotificationType.MENTOR_ASSIGNMENT,
                         linkUrl: `/students/${student.id}`,
                     },
                 });
@@ -389,11 +395,11 @@ studentsRouter.post('/', authenticate, requireRoles(Role.ADMIN), async (req, res
     }
 });
 // GET /api/students/:id - Complete Student Workspace
-studentsRouter.get('/:id', authenticate, async (req, res) => {
+exports.studentsRouter.get('/:id', auth_js_1.authenticate, async (req, res) => {
     try {
         let studentId = req.params.id;
         if (studentId === 'me' || studentId === 'my-workspace') {
-            const selfStudent = await prisma.student.findFirst({
+            const selfStudent = await prisma_js_1.prisma.student.findFirst({
                 where: { userId: req.user.id },
                 select: { id: true },
             });
@@ -404,7 +410,7 @@ studentsRouter.get('/:id', authenticate, async (req, res) => {
             studentId = selfStudent.id;
         }
         // Resolve student record by id OR userId
-        const found = await prisma.student.findFirst({
+        const found = await prisma_js_1.prisma.student.findFirst({
             where: {
                 OR: [
                     { id: studentId },
@@ -418,12 +424,12 @@ studentsRouter.get('/:id', authenticate, async (req, res) => {
             return;
         }
         const actualStudentId = found.id;
-        const access = await checkStudentAccess(req, actualStudentId, 'read');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, actualStudentId, 'read');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
-        const student = await prisma.student.findUnique({
+        const student = await prisma_js_1.prisma.student.findUnique({
             where: { id: actualStudentId },
             include: {
                 project: {
@@ -511,7 +517,7 @@ studentsRouter.get('/:id', authenticate, async (req, res) => {
         // Role-based protection on financial data:
         const userRole = req.user.role;
         let safeFeeAgreement = student.feeAgreement;
-        if (userRole === Role.MENTOR) {
+        if (userRole === client_1.Role.MENTOR) {
             if (student.feeAgreement) {
                 const totalPaid = student.feeAgreement.payments.reduce((acc, p) => acc + p.amount, 0);
                 safeFeeAgreement = {
@@ -533,7 +539,7 @@ studentsRouter.get('/:id', authenticate, async (req, res) => {
             }
         }
         // Fetch activity history
-        const activities = await prisma.activityLog.findMany({
+        const activities = await prisma_js_1.prisma.activityLog.findMany({
             where: {
                 OR: [
                     { entityId: student.id },
@@ -558,17 +564,17 @@ studentsRouter.get('/:id', authenticate, async (req, res) => {
     }
 });
 // PUT /api/students/:id - Update student record (Admin / Supervisor / Self basic)
-studentsRouter.put('/:id', authenticate, async (req, res) => {
+exports.studentsRouter.put('/:id', auth_js_1.authenticate, async (req, res) => {
     try {
         const studentId = req.params.id;
-        const access = await checkStudentAccess(req, studentId, 'write');
+        const access = await (0, auth_js_1.checkStudentAccess)(req, studentId, 'write');
         if (!access.allowed) {
             res.status(403).json({ message: access.reason || 'Forbidden' });
             return;
         }
         const { fullName, registrationNumber, contactNumber, whatsappNumber, currentAddress, status, remarks, university, degreeProgramme, batch, academicYear, assignedSupervisorId, assignedMentorId, } = req.body;
-        const isAdmin = req.user.role === Role.ADMIN || req.user.role === Role.SUPER_ADMIN;
-        const existingStudent = await prisma.student.findUnique({
+        const isAdmin = req.user.role === client_1.Role.ADMIN || req.user.role === client_1.Role.SUPER_ADMIN;
+        const existingStudent = await prisma_js_1.prisma.student.findUnique({
             where: { id: studentId },
         });
         if (!existingStudent) {
@@ -577,7 +583,7 @@ studentsRouter.put('/:id', authenticate, async (req, res) => {
         }
         // Track mentor reassignment if mentor changed by Admin
         if (isAdmin && assignedMentorId && assignedMentorId !== existingStudent.assignedMentorId) {
-            await prisma.mentorAssignmentHistory.create({
+            await prisma_js_1.prisma.mentorAssignmentHistory.create({
                 data: {
                     studentId,
                     previousMentorId: existingStudent.assignedMentorId,
@@ -587,12 +593,12 @@ studentsRouter.put('/:id', authenticate, async (req, res) => {
                 },
             });
             // Update documents & tasks assigned mentor
-            await prisma.studentDocument.updateMany({
+            await prisma_js_1.prisma.studentDocument.updateMany({
                 where: { studentId },
                 data: { assignedMentorId },
             });
         }
-        const updated = await prisma.student.update({
+        const updated = await prisma_js_1.prisma.student.update({
             where: { id: studentId },
             data: {
                 fullName: fullName ? fullName.trim() : undefined,
@@ -610,7 +616,7 @@ studentsRouter.put('/:id', authenticate, async (req, res) => {
                 assignedMentorId: isAdmin ? assignedMentorId : undefined,
             },
         });
-        await prisma.activityLog.create({
+        await prisma_js_1.prisma.activityLog.create({
             data: {
                 actorId: req.user.id,
                 actorName: req.user.fullName,
@@ -629,11 +635,11 @@ studentsRouter.put('/:id', authenticate, async (req, res) => {
     }
 });
 // PUT /api/students/:id/status - Activate or Deactivate student (Admin only)
-studentsRouter.put('/:id/status', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.studentsRouter.put('/:id/status', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const studentId = req.params.id;
         const { status, isActive } = req.body;
-        const student = await prisma.student.findUnique({
+        const student = await prisma_js_1.prisma.student.findUnique({
             where: { id: studentId },
             include: { user: true },
         });
@@ -641,9 +647,9 @@ studentsRouter.put('/:id/status', authenticate, requireRoles(Role.ADMIN), async 
             res.status(404).json({ message: 'Student not found.' });
             return;
         }
-        const newIsActive = isActive !== undefined ? Boolean(isActive) : status !== StudentStatus.DEACTIVATED;
-        const newStatus = status ? status : newIsActive ? StudentStatus.ACTIVE : StudentStatus.DEACTIVATED;
-        await prisma.$transaction(async (tx) => {
+        const newIsActive = isActive !== undefined ? Boolean(isActive) : status !== client_1.StudentStatus.DEACTIVATED;
+        const newStatus = status ? status : newIsActive ? client_1.StudentStatus.ACTIVE : client_1.StudentStatus.DEACTIVATED;
+        await prisma_js_1.prisma.$transaction(async (tx) => {
             await tx.student.update({
                 where: { id: studentId },
                 data: {
@@ -682,7 +688,7 @@ studentsRouter.put('/:id/status', authenticate, requireRoles(Role.ADMIN), async 
     }
 });
 // POST /api/students/:id/supporting-mentors - Add supporting mentor
-studentsRouter.post('/:id/supporting-mentors', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR), async (req, res) => {
+exports.studentsRouter.post('/:id/supporting-mentors', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR), async (req, res) => {
     try {
         const studentId = req.params.id;
         const { mentorId } = req.body;
@@ -690,14 +696,14 @@ studentsRouter.post('/:id/supporting-mentors', authenticate, requireRoles(Role.A
             res.status(400).json({ message: 'Mentor ID is required.' });
             return;
         }
-        const mentor = await prisma.user.findFirst({
-            where: { id: mentorId, role: Role.MENTOR, isActive: true },
+        const mentor = await prisma_js_1.prisma.user.findFirst({
+            where: { id: mentorId, role: client_1.Role.MENTOR, isActive: true },
         });
         if (!mentor) {
             res.status(404).json({ message: 'Active mentor not found.' });
             return;
         }
-        const existing = await prisma.studentMentorAssignment.findUnique({
+        const existing = await prisma_js_1.prisma.studentMentorAssignment.findUnique({
             where: {
                 studentId_mentorId: {
                     studentId,
@@ -709,7 +715,7 @@ studentsRouter.post('/:id/supporting-mentors', authenticate, requireRoles(Role.A
             res.status(400).json({ message: 'Mentor is already assigned to this student.' });
             return;
         }
-        const assignment = await prisma.studentMentorAssignment.create({
+        const assignment = await prisma_js_1.prisma.studentMentorAssignment.create({
             data: {
                 studentId,
                 mentorId,
@@ -719,12 +725,12 @@ studentsRouter.post('/:id/supporting-mentors', authenticate, requireRoles(Role.A
                 mentor: { select: { id: true, fullName: true, email: true } },
             },
         });
-        await prisma.notification.create({
+        await prisma_js_1.prisma.notification.create({
             data: {
                 userId: mentorId,
                 title: 'Assigned as Supporting Mentor',
                 message: `You have been added as a supporting mentor for student.`,
-                type: NotificationType.MENTOR_ASSIGNMENT,
+                type: client_1.NotificationType.MENTOR_ASSIGNMENT,
                 linkUrl: `/students/${studentId}`,
             },
         });
@@ -736,10 +742,10 @@ studentsRouter.post('/:id/supporting-mentors', authenticate, requireRoles(Role.A
     }
 });
 // DELETE /api/students/:id/supporting-mentors/:mentorId - Remove supporting mentor
-studentsRouter.delete('/:id/supporting-mentors/:mentorId', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR), async (req, res) => {
+exports.studentsRouter.delete('/:id/supporting-mentors/:mentorId', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR), async (req, res) => {
     try {
         const { id: studentId, mentorId } = req.params;
-        await prisma.studentMentorAssignment.deleteMany({
+        await prisma_js_1.prisma.studentMentorAssignment.deleteMany({
             where: {
                 studentId,
                 mentorId,
@@ -753,7 +759,7 @@ studentsRouter.delete('/:id/supporting-mentors/:mentorId', authenticate, require
     }
 });
 // POST /api/students/:id/assign-mentor - Reassign primary mentor (Admin only)
-studentsRouter.post('/:id/assign-mentor', authenticate, requireRoles(Role.ADMIN), async (req, res) => {
+exports.studentsRouter.post('/:id/assign-mentor', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN), async (req, res) => {
     try {
         const studentId = req.params.id;
         const { newMentorId, reason } = req.body;
@@ -761,7 +767,7 @@ studentsRouter.post('/:id/assign-mentor', authenticate, requireRoles(Role.ADMIN)
             res.status(400).json({ message: 'New mentor ID is required' });
             return;
         }
-        const student = await prisma.student.findUnique({
+        const student = await prisma_js_1.prisma.student.findUnique({
             where: { id: studentId },
             include: { project: true },
         });
@@ -770,7 +776,7 @@ studentsRouter.post('/:id/assign-mentor', authenticate, requireRoles(Role.ADMIN)
             return;
         }
         const previousMentorId = student.assignedMentorId;
-        await prisma.$transaction(async (tx) => {
+        await prisma_js_1.prisma.$transaction(async (tx) => {
             // 1. Update Student
             await tx.student.update({
                 where: { id: studentId },
@@ -807,7 +813,7 @@ studentsRouter.post('/:id/assign-mentor', authenticate, requireRoles(Role.ADMIN)
                     userId: newMentorId,
                     title: `Student Reassigned: ${student.fullName}`,
                     message: `You are now the primary mentor for ${student.fullName}. Reason: ${reason || 'Reassigned by Admin'}`,
-                    type: NotificationType.MENTOR_ASSIGNMENT,
+                    type: client_1.NotificationType.MENTOR_ASSIGNMENT,
                     linkUrl: `/students/${studentId}`,
                 },
             });

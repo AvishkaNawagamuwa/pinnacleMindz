@@ -1,21 +1,24 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate } from '../middleware/auth.js';
-export const notificationsRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.notificationsRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+exports.notificationsRouter = (0, express_1.Router)();
 // GET /api/notifications - User notifications
-notificationsRouter.get('/', authenticate, async (req, res) => {
+exports.notificationsRouter.get('/', auth_js_1.authenticate, async (req, res) => {
     try {
         const { unreadOnly } = req.query;
         const where = { userId: req.user.id };
         if (unreadOnly === 'true')
             where.isRead = false;
         const [notifications, unreadCount] = await Promise.all([
-            prisma.notification.findMany({
+            prisma_js_1.prisma.notification.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
                 take: 50,
             }),
-            prisma.notification.count({
+            prisma_js_1.prisma.notification.count({
                 where: { userId: req.user.id, isRead: false },
             }),
         ]);
@@ -26,10 +29,10 @@ notificationsRouter.get('/', authenticate, async (req, res) => {
     }
 });
 // PUT /api/notifications/:id/read - Mark notification as read
-notificationsRouter.put('/:id/read', authenticate, async (req, res) => {
+exports.notificationsRouter.put('/:id/read', auth_js_1.authenticate, async (req, res) => {
     try {
         const notifId = req.params.id;
-        await prisma.notification.updateMany({
+        await prisma_js_1.prisma.notification.updateMany({
             where: { id: notifId, userId: req.user.id },
             data: { isRead: true },
         });
@@ -40,9 +43,9 @@ notificationsRouter.put('/:id/read', authenticate, async (req, res) => {
     }
 });
 // PUT /api/notifications/read-all - Mark all user notifications as read
-notificationsRouter.put('/read-all', authenticate, async (req, res) => {
+exports.notificationsRouter.put('/read-all', auth_js_1.authenticate, async (req, res) => {
     try {
-        await prisma.notification.updateMany({
+        await prisma_js_1.prisma.notification.updateMany({
             where: { userId: req.user.id, isRead: false },
             data: { isRead: true },
         });

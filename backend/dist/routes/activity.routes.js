@@ -1,10 +1,13 @@
-import { Router } from 'express';
-import { prisma } from '../prisma.js';
-import { authenticate, requireRoles } from '../middleware/auth.js';
-import { Role } from '@prisma/client';
-export const activityRouter = Router();
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.activityRouter = void 0;
+const express_1 = require("express");
+const prisma_js_1 = require("../prisma.js");
+const auth_js_1 = require("../middleware/auth.js");
+const client_1 = require("@prisma/client");
+exports.activityRouter = (0, express_1.Router)();
 // GET /api/activity - Audit trail
-activityRouter.get('/', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR), async (req, res) => {
+exports.activityRouter.get('/', auth_js_1.authenticate, (0, auth_js_1.requireRoles)(client_1.Role.ADMIN, client_1.Role.SUPERVISOR), async (req, res) => {
     try {
         const { entityType, entityId, action, search, page = '1', limit = '50' } = req.query;
         const pageNum = parseInt(page, 10) || 1;
@@ -26,8 +29,8 @@ activityRouter.get('/', authenticate, requireRoles(Role.ADMIN, Role.SUPERVISOR),
             ];
         }
         const [total, logs] = await Promise.all([
-            prisma.activityLog.count({ where }),
-            prisma.activityLog.findMany({
+            prisma_js_1.prisma.activityLog.count({ where }),
+            prisma_js_1.prisma.activityLog.findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
                 skip,

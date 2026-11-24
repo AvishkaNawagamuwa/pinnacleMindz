@@ -1,7 +1,12 @@
-import { prisma } from '../prisma.js';
-import bcrypt from 'bcryptjs';
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const prisma_js_1 = require("../prisma.js");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 async function main() {
-    const users = await prisma.user.findMany({
+    const users = await prisma_js_1.prisma.user.findMany({
         select: { id: true, email: true, username: true, role: true, passwordHash: true },
     });
     const candidates = [
@@ -22,7 +27,7 @@ async function main() {
     for (const u of users) {
         let matched = null;
         for (const c of candidates) {
-            if (await bcrypt.compare(c, u.passwordHash)) {
+            if (await bcryptjs_1.default.compare(c, u.passwordHash)) {
                 matched = c;
                 break;
             }
@@ -32,4 +37,4 @@ async function main() {
 }
 main()
     .catch(console.error)
-    .finally(() => prisma.$disconnect());
+    .finally(() => prisma_js_1.prisma.$disconnect());
