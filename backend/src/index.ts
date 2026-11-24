@@ -50,7 +50,7 @@ const uploadDir = path.resolve(
 app.use('/uploads', express.static(uploadDir));
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'healthy',
     system: 'Pinnacle Mindz - Project Guidance & Progress Management System',
@@ -59,22 +59,22 @@ app.get('/api/health', (req, res) => {
 });
 
 // Mount Routes
-app.use('/api/auth', authRouter);
-app.use('/api/students', studentsRouter);
-app.use('/api/projects', projectsRouter);
-app.use('/api/documents', documentsRouter);
-app.use('/api/progress', progressRouter);
-app.use('/api/tasks', tasksRouter);
-app.use('/api/reviews', reviewsRouter);
-app.use('/api/meetings', meetingsRouter);
-app.use('/api/evaluations', evaluationsRouter);
-app.use('/api/payments', paymentsRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/notifications', notificationsRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/activity', activityRouter);
+app.use(['/api/auth', '/auth'], authRouter);
+app.use(['/api/students', '/students'], studentsRouter);
+app.use(['/api/projects', '/projects'], projectsRouter);
+app.use(['/api/documents', '/documents'], documentsRouter);
+app.use(['/api/progress', '/progress'], progressRouter);
+app.use(['/api/tasks', '/tasks'], tasksRouter);
+app.use(['/api/reviews', '/reviews'], reviewsRouter);
+app.use(['/api/meetings', '/meetings'], meetingsRouter);
+app.use(['/api/evaluations', '/evaluations'], evaluationsRouter);
+app.use(['/api/payments', '/payments'], paymentsRouter);
+app.use(['/api/dashboard', '/dashboard'], dashboardRouter);
+app.use(['/api/reports', '/reports'], reportsRouter);
+app.use(['/api/notifications', '/notifications'], notificationsRouter);
+app.use(['/api/users', '/users'], usersRouter);
+app.use(['/api/settings', '/settings'], settingsRouter);
+app.use(['/api/activity', '/activity'], activityRouter);
 
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -107488,12 +107488,34 @@ var import_jsonwebtoken2 = __toESM(require_jsonwebtoken());
 // src/prisma.ts
 var import_client = require("@prisma/client");
 var globalForPrisma = global;
-var databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
-var prisma = globalForPrisma.prisma || new import_client.PrismaClient({
-  datasources: databaseUrl ? { db: { url: databaseUrl } } : void 0,
-  log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
+var _client = null;
+function getPrismaClient() {
+  if (!_client) {
+    if (globalForPrisma.prisma) {
+      _client = globalForPrisma.prisma;
+    } else {
+      const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
+      _client = new import_client.PrismaClient({
+        datasources: databaseUrl ? { db: { url: databaseUrl } } : void 0,
+        log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
+      });
+      if (process.env.NODE_ENV !== "production") {
+        globalForPrisma.prisma = _client;
+      }
+    }
+  }
+  return _client;
+}
+var prisma = new Proxy({}, {
+  get(_target, prop, receiver) {
+    const client = getPrismaClient();
+    const val = Reflect.get(client, prop, receiver);
+    if (typeof val === "function") {
+      return val.bind(client);
+    }
+    return val;
+  }
 });
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // src/middleware/auth.ts
 var import_jsonwebtoken = __toESM(require_jsonwebtoken());
@@ -113856,29 +113878,29 @@ var uploadDir2 = import_path3.default.resolve(
   process.env.UPLOAD_DIR || (process.env.VERCEL ? import_path3.default.join(import_os2.default.tmpdir(), "uploads") : import_path3.default.resolve(process.cwd(), "../uploads"))
 );
 app.use("/uploads", import_express17.default.static(uploadDir2));
-app.get("/api/health", (req, res) => {
+app.get(["/api/health", "/health"], (req, res) => {
   res.json({
     status: "healthy",
     system: "Pinnacle Mindz - Project Guidance & Progress Management System",
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 });
-app.use("/api/auth", authRouter);
-app.use("/api/students", studentsRouter);
-app.use("/api/projects", projectsRouter);
-app.use("/api/documents", documentsRouter);
-app.use("/api/progress", progressRouter);
-app.use("/api/tasks", tasksRouter);
-app.use("/api/reviews", reviewsRouter);
-app.use("/api/meetings", meetingsRouter);
-app.use("/api/evaluations", evaluationsRouter);
-app.use("/api/payments", paymentsRouter);
-app.use("/api/dashboard", dashboardRouter);
-app.use("/api/reports", reportsRouter);
-app.use("/api/notifications", notificationsRouter);
-app.use("/api/users", usersRouter);
-app.use("/api/settings", settingsRouter);
-app.use("/api/activity", activityRouter);
+app.use(["/api/auth", "/auth"], authRouter);
+app.use(["/api/students", "/students"], studentsRouter);
+app.use(["/api/projects", "/projects"], projectsRouter);
+app.use(["/api/documents", "/documents"], documentsRouter);
+app.use(["/api/progress", "/progress"], progressRouter);
+app.use(["/api/tasks", "/tasks"], tasksRouter);
+app.use(["/api/reviews", "/reviews"], reviewsRouter);
+app.use(["/api/meetings", "/meetings"], meetingsRouter);
+app.use(["/api/evaluations", "/evaluations"], evaluationsRouter);
+app.use(["/api/payments", "/payments"], paymentsRouter);
+app.use(["/api/dashboard", "/dashboard"], dashboardRouter);
+app.use(["/api/reports", "/reports"], reportsRouter);
+app.use(["/api/notifications", "/notifications"], notificationsRouter);
+app.use(["/api/users", "/users"], usersRouter);
+app.use(["/api/settings", "/settings"], settingsRouter);
+app.use(["/api/activity", "/activity"], activityRouter);
 app.use((err, req, res, next) => {
   console.error("Unhandled Application Error:", err);
   res.status(err.status || 500).json({

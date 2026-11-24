@@ -44,7 +44,7 @@ const uploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ||
     (process.env.VERCEL ? path_1.default.join(os_1.default.tmpdir(), 'uploads') : path_1.default.resolve(process.cwd(), '../uploads')));
 app.use('/uploads', express_1.default.static(uploadDir));
 // Health check
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
     res.json({
         status: 'healthy',
         system: 'Pinnacle Mindz - Project Guidance & Progress Management System',
@@ -52,22 +52,22 @@ app.get('/api/health', (req, res) => {
     });
 });
 // Mount Routes
-app.use('/api/auth', auth_routes_js_1.authRouter);
-app.use('/api/students', students_routes_js_1.studentsRouter);
-app.use('/api/projects', projects_routes_js_1.projectsRouter);
-app.use('/api/documents', documents_routes_js_1.documentsRouter);
-app.use('/api/progress', progress_routes_js_1.progressRouter);
-app.use('/api/tasks', tasks_routes_js_1.tasksRouter);
-app.use('/api/reviews', reviews_routes_js_1.reviewsRouter);
-app.use('/api/meetings', meetings_routes_js_1.meetingsRouter);
-app.use('/api/evaluations', evaluations_routes_js_1.evaluationsRouter);
-app.use('/api/payments', payments_routes_js_1.paymentsRouter);
-app.use('/api/dashboard', dashboard_routes_js_1.dashboardRouter);
-app.use('/api/reports', reports_routes_js_1.reportsRouter);
-app.use('/api/notifications', notifications_routes_js_1.notificationsRouter);
-app.use('/api/users', users_routes_js_1.usersRouter);
-app.use('/api/settings', settings_routes_js_1.settingsRouter);
-app.use('/api/activity', activity_routes_js_1.activityRouter);
+app.use(['/api/auth', '/auth'], auth_routes_js_1.authRouter);
+app.use(['/api/students', '/students'], students_routes_js_1.studentsRouter);
+app.use(['/api/projects', '/projects'], projects_routes_js_1.projectsRouter);
+app.use(['/api/documents', '/documents'], documents_routes_js_1.documentsRouter);
+app.use(['/api/progress', '/progress'], progress_routes_js_1.progressRouter);
+app.use(['/api/tasks', '/tasks'], tasks_routes_js_1.tasksRouter);
+app.use(['/api/reviews', '/reviews'], reviews_routes_js_1.reviewsRouter);
+app.use(['/api/meetings', '/meetings'], meetings_routes_js_1.meetingsRouter);
+app.use(['/api/evaluations', '/evaluations'], evaluations_routes_js_1.evaluationsRouter);
+app.use(['/api/payments', '/payments'], payments_routes_js_1.paymentsRouter);
+app.use(['/api/dashboard', '/dashboard'], dashboard_routes_js_1.dashboardRouter);
+app.use(['/api/reports', '/reports'], reports_routes_js_1.reportsRouter);
+app.use(['/api/notifications', '/notifications'], notifications_routes_js_1.notificationsRouter);
+app.use(['/api/users', '/users'], users_routes_js_1.usersRouter);
+app.use(['/api/settings', '/settings'], settings_routes_js_1.settingsRouter);
+app.use(['/api/activity', '/activity'], activity_routes_js_1.activityRouter);
 // Global Error Handler
 app.use((err, req, res, next) => {
     console.error('Unhandled Application Error:', err);
