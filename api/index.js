@@ -1,3 +1,3 @@
-import app from '../backend/dist/index.js';
+import app from '../backend/dist/bundle.mjs';
 
 export default app;
