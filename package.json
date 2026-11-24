@@ -3,11 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm --prefix backend run build && npm --prefix frontend run build && node copy_dist.js",
-    "postinstall": "prisma generate"
-  },
-  "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "prisma": "^5.22.0"
+    "build": "npm --prefix backend run build && npm --prefix frontend run build && node copy_dist.js"
   }
 }
