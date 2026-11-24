@@ -39,6 +39,7 @@ var import_cookie_parser = __toESM(require("cookie-parser"));
 var import_morgan = __toESM(require("morgan"));
 var import_dotenv = __toESM(require("dotenv"));
 var import_path3 = __toESM(require("path"));
+var import_os2 = __toESM(require("os"));
 
 // src/routes/auth.routes.ts
 var import_express = require("express");
@@ -1363,12 +1364,25 @@ var import_express4 = require("express");
 var import_multer = __toESM(require("multer"));
 var import_path = __toESM(require("path"));
 var import_fs = __toESM(require("fs"));
-var uploadDir = import_path.default.resolve(process.cwd(), process.env.UPLOAD_DIR || "../uploads");
-if (!import_fs.default.existsSync(uploadDir)) {
-  import_fs.default.mkdirSync(uploadDir, { recursive: true });
+var import_os = __toESM(require("os"));
+var uploadDir = import_path.default.resolve(
+  process.env.UPLOAD_DIR || (process.env.VERCEL ? import_path.default.join(import_os.default.tmpdir(), "uploads") : import_path.default.resolve(process.cwd(), "../uploads"))
+);
+try {
+  if (!import_fs.default.existsSync(uploadDir)) {
+    import_fs.default.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn("\u26A0\uFE0F Warning: Could not create upload directory:", err?.message || err);
 }
 var storage = import_multer.default.diskStorage({
   destination: (req, file, cb) => {
+    try {
+      if (!import_fs.default.existsSync(uploadDir)) {
+        import_fs.default.mkdirSync(uploadDir, { recursive: true });
+      }
+    } catch (e) {
+    }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -1390,7 +1404,7 @@ var upload = (0, import_multer.default)({
     if (allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error(`File type ${ext} is not allowed. Allowed types: ${allowedExtensions.join(", ")}`));
+      cb(new Error(`File type ${ext} is not allowed. Supported formats: PDF, DOC, DOCX, PNG, JPG, ZIP, XLSX, CSV`));
     }
   }
 });
@@ -4813,7 +4827,9 @@ app.use(import_express17.default.json({ limit: "20mb" }));
 app.use(import_express17.default.urlencoded({ extended: true, limit: "20mb" }));
 app.use((0, import_cookie_parser.default)());
 app.use((0, import_morgan.default)("dev"));
-var uploadDir2 = import_path3.default.resolve(process.cwd(), process.env.UPLOAD_DIR || "../uploads");
+var uploadDir2 = import_path3.default.resolve(
+  process.env.UPLOAD_DIR || (process.env.VERCEL ? import_path3.default.join(import_os2.default.tmpdir(), "uploads") : import_path3.default.resolve(process.cwd(), "../uploads"))
+);
 app.use("/uploads", import_express17.default.static(uploadDir2));
 app.get("/api/health", (req, res) => {
   res.json({

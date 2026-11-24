@@ -7,12 +7,27 @@ exports.upload = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-const uploadDir = path_1.default.resolve(process.cwd(), process.env.UPLOAD_DIR || '../uploads');
-if (!fs_1.default.existsSync(uploadDir)) {
-    fs_1.default.mkdirSync(uploadDir, { recursive: true });
+const os_1 = __importDefault(require("os"));
+const uploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ||
+    (process.env.VERCEL ? path_1.default.join(os_1.default.tmpdir(), 'uploads') : path_1.default.resolve(process.cwd(), '../uploads')));
+try {
+    if (!fs_1.default.existsSync(uploadDir)) {
+        fs_1.default.mkdirSync(uploadDir, { recursive: true });
+    }
+}
+catch (err) {
+    console.warn('⚠️ Warning: Could not create upload directory:', err?.message || err);
 }
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
+        try {
+            if (!fs_1.default.existsSync(uploadDir)) {
+                fs_1.default.mkdirSync(uploadDir, { recursive: true });
+            }
+        }
+        catch (e) {
+            // Ignore in read-only environments
+        }
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
@@ -34,7 +49,7 @@ exports.upload = (0, multer_1.default)({
             cb(null, true);
         }
         else {
-            cb(new Error(`File type ${ext} is not allowed. Allowed types: ${allowedExtensions.join(', ')}`));
+            cb(new Error(`File type ${ext} is not allowed. Supported formats: PDF, DOC, DOCX, PNG, JPG, ZIP, XLSX, CSV`));
         }
     },
 });

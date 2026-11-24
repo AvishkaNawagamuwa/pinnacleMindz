@@ -9,6 +9,7 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const morgan_1 = __importDefault(require("morgan"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
+const os_1 = __importDefault(require("os"));
 const auth_routes_js_1 = require("./routes/auth.routes.js");
 const students_routes_js_1 = require("./routes/students.routes.js");
 const projects_routes_js_1 = require("./routes/projects.routes.js");
@@ -39,7 +40,8 @@ app.use(express_1.default.urlencoded({ extended: true, limit: '20mb' }));
 app.use((0, cookie_parser_1.default)());
 app.use((0, morgan_1.default)('dev'));
 // Static files for persistent uploads
-const uploadDir = path_1.default.resolve(process.cwd(), process.env.UPLOAD_DIR || '../uploads');
+const uploadDir = path_1.default.resolve(process.env.UPLOAD_DIR ||
+    (process.env.VERCEL ? path_1.default.join(os_1.default.tmpdir(), 'uploads') : path_1.default.resolve(process.cwd(), '../uploads')));
 app.use('/uploads', express_1.default.static(uploadDir));
 // Health check
 app.get('/api/health', (req, res) => {

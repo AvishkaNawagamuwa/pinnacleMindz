@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
+import os from 'os';
 
 import { authRouter } from './routes/auth.routes.js';
 import { studentsRouter } from './routes/students.routes.js';
@@ -42,7 +43,10 @@ app.use(cookieParser());
 app.use(morgan('dev'));
 
 // Static files for persistent uploads
-const uploadDir = path.resolve(process.cwd(), process.env.UPLOAD_DIR || '../uploads');
+const uploadDir = path.resolve(
+  process.env.UPLOAD_DIR ||
+  (process.env.VERCEL ? path.join(os.tmpdir(), 'uploads') : path.resolve(process.cwd(), '../uploads'))
+);
 app.use('/uploads', express.static(uploadDir));
 
 // Health check
