@@ -1,7 +1,0 @@
-{
-  "name": "api",
-  "type": "module",
-  "dependencies": {
-    "@prisma/client": "^5.22.0"
-  }
-}

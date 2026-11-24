@@ -1,8 +1,0 @@
-{
-  "name": "pinnacle-mindz",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "build": "npm --prefix backend run build && npm --prefix frontend run build && node copy_dist.js"
-  }
-}
