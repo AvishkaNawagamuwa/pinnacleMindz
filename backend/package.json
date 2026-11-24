@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && tsc && npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --packages=external --outfile=dist/index.js --footer:js=\"module.exports = index_default; module.exports.default = index_default;\" && npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/bundle.mjs && npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --packages=external --outfile=dist/bundle.cjs && npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=../api/index.js",
+    "build": "prisma generate && tsc && npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --external:@prisma/client --external:pdfkit --outfile=../api/index.js && npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --packages=external --outfile=dist/bundle.cjs && npx esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/bundle.mjs",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
